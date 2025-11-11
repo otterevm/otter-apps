@@ -68,7 +68,7 @@ async function loader({
 	}
 }
 
-export const Route = createFileRoute('/_layout/tx/$hash')({
+export const Route = createFileRoute('/_layout/receipt/$hash')({
 	component: Component,
 	headers: () => ({
 		...(import.meta.env.PROD
@@ -418,7 +418,7 @@ export namespace LineItems {
 											left: `From: ${HexFormatter.truncate(from)}`,
 										},
 									],
-									left: `Burn ${symbol}`,
+									left: 'Burn ${symbol}',
 									right: decimals
 										? PriceFormatter.format(amount, decimals)
 										: '-',
@@ -449,7 +449,7 @@ export namespace LineItems {
 										left: `To: ${HexFormatter.truncate(account)}`,
 									},
 									{
-										left: `Role: ${roleName}`,
+										left: 'Role: ${roleName}',
 									},
 								],
 								left: `${roleName ? `${roleName} ` : ' '}Role ${hasRole ? 'Granted' : 'Revoked'}`,
