@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import * as React from 'react'
 import { Pagination } from '#comps/Pagination'
 import { Sections } from '#comps/Sections'
-import { cx } from '#cva.config.ts'
+import { cx } from '#cva.config'
 
 export function DataGrid(props: DataGrid.Props) {
 	const {
@@ -127,7 +127,7 @@ export function DataGrid(props: DataGrid.Props) {
 									)
 								})}
 								{item.expanded && typeof item.expanded !== 'boolean' && (
-									<div className="col-span-full px-[16px] pb-[12px] [contain:inline-size]">
+									<div className="col-span-full px-[16px] pb-[12px] [contain:inline-size] -mt-[4px]">
 										{item.expanded}
 									</div>
 								)}
