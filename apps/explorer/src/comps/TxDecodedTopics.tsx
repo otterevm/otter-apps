@@ -251,23 +251,17 @@ export namespace TxDecodedTopics {
 		return (
 			<div className="px-[10px] py-[8px] min-w-0">
 				<div className="text-[11px] text-tertiary mb-[6px]">
-					{notifying ? (
-						<span className="text-primary">copied</span>
-					) : (
+					{notifying ? <span className="text-primary">copied</span> : 'Data'}
+					{hasDecodedArgs && (
 						<>
-							Data
-							{hasDecodedArgs && (
-								<>
-									{' '}
-									<button
-										type="button"
-										onClick={() => setShowRaw(!showRaw)}
-										className="text-accent hover:underline cursor-pointer"
-									>
-										({showRaw ? 'raw' : 'decoded'})
-									</button>
-								</>
-							)}
+							{' '}
+							<button
+								type="button"
+								onClick={() => setShowRaw(!showRaw)}
+								className="text-accent hover:underline cursor-pointer"
+							>
+								({showRaw ? 'raw' : 'decoded'})
+							</button>
 						</>
 					)}
 				</div>
