@@ -10,20 +10,26 @@
 		"deploy": "wrangler deploy",
 		"deploy:testnet": "wrangler deploy --env testnet",
 		"deploy:devnet": "wrangler deploy --env devnet",
-		"deploy:moderato": "wrangler deploy --env moderato"
+		"deploy:moderato": "wrangler deploy --env moderato",
+		"test": "vitest --run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"@coinbase/x402": "^2.1.0",
 		"@hono/zod-validator": "catalog:",
+		"@x402/core": "^2.2.0",
 		"hono": "catalog:",
 		"tempo.ts": "catalog:",
 		"viem": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
 		"@types/node": "catalog:",
+		"ox": "catalog:",
 		"typescript": "catalog:",
+		"vitest": "catalog:",
 		"wrangler": "catalog:"
 	}
 }

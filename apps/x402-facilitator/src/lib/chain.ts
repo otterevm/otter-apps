@@ -9,8 +9,8 @@ const chains = {
 
 type TempoEnv = keyof typeof chains
 
-// @ts-expect-error - Env types will be resolved with worker deployment
-export const tempoChain = (chains[env.TEMPO_ENV as TempoEnv] ?? tempoTestnet).extend({
-	// @ts-expect-error - Env types will be resolved with worker deployment
-	feeToken: env.FEE_TOKEN as `0x${string}`,
+export const tempoChain = (
+	chains[(env as { TEMPO_ENV: TempoEnv }).TEMPO_ENV] ?? tempoTestnet
+).extend({
+	feeToken: (env as { FEE_TOKEN: string }).FEE_TOKEN as `0x${string}`,
 })

@@ -1,0 +1,4 @@
+# Copy this file to .dev.vars and fill in your values
+# This file contains secrets for local development
+
+SPONSOR_PRIVATE_KEY=0x...your_private_key_here

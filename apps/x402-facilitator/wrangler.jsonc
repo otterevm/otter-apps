@@ -5,6 +5,12 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "./src/index.ts",
 	"workers_dev": false,
+	"vars": {
+		"TEMPO_RPC_URL": "https://rpc.testnet.tempo.xyz",
+		"ALLOWED_ORIGINS": "*",
+		"TEMPO_ENV": "testnet",
+		"FEE_TOKEN": "0x20c0000000000000000000000000000000000001"
+	},
 	"ratelimits": [
 		{
 			"name": "AddressRateLimiter",
@@ -37,7 +43,8 @@
 				"TEMPO_RPC_URL": "https://rpc.testnet.tempo.xyz",
 				"ALLOWED_ORIGINS": "*",
 				"TEMPO_ENV": "testnet",
-				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001"
+				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001",
+				"POSTHOG_API_KEY": "phc_aNlTw2xAUQKd9zTovXeYheEUpQpEhplehCK5r1e31HR"
 			},
 			"ratelimits": [
 				{
@@ -61,7 +68,8 @@
 				"TEMPO_RPC_URL": "https://rpc.devnet.tempoxyz.dev",
 				"ALLOWED_ORIGINS": "*",
 				"TEMPO_ENV": "devnet",
-				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001"
+				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001",
+				"POSTHOG_API_KEY": "phc_aNlTw2xAUQKd9zTovXeYheEUpQpEhplehCK5r1e31HR"
 			},
 			"ratelimits": [
 				{
@@ -85,7 +93,8 @@
 				"TEMPO_RPC_URL": "https://proxy.tempo.xyz/rpc/42431",
 				"ALLOWED_ORIGINS": "*",
 				"TEMPO_ENV": "moderato",
-				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001"
+				"FEE_TOKEN": "0x20c0000000000000000000000000000000000001",
+				"POSTHOG_API_KEY": "phc_aNlTw2xAUQKd9zTovXeYheEUpQpEhplehCK5r1e31HR"
 			},
 			"ratelimits": [
 				{
