@@ -27,6 +27,7 @@ import {
 	sourcesTable,
 	verifiedContractsTable,
 } from '#database/schema.ts'
+import { detectProxy } from '#proxy-resolution.ts'
 import { normalizeSourcePath, sourcifyError } from '#utilities.ts'
 
 /**
@@ -581,6 +582,9 @@ verifyRoute.post('/:chainId/:address', async (context) => {
 			}
 		}
 
+		// Detect proxy type from bytecode (no RPC calls)
+		const proxyDetection = await detectProxy(onchainBytecode)
+
 		// Insert verified contract with transformation data
 		await db
 			.insert(verifiedContractsTable)
@@ -598,6 +602,8 @@ verifyRoute.post('/:chainId/:address', async (context) => {
 					runtimeMatchResult.transformations.length > 0
 						? JSON.stringify(runtimeMatchResult.transformations)
 						: null,
+				isProxy: proxyDetection?.isProxy ?? null,
+				proxyType: proxyDetection?.proxyType ?? null,
 				createdBy: auditUser,
 				updatedBy: auditUser,
 			})

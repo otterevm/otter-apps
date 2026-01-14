@@ -8,6 +8,27 @@ import * as z from 'zod/mini'
 const CONTRACT_VERIFICATION_API_BASE_URL =
 	'https://contracts.tempo.xyz/v2/contract'
 
+const ProxyResolutionSchema = z.object({
+	isProxy: z.boolean(),
+	proxyType: z.nullable(
+		z.enum([
+			'EIP1167Proxy',
+			'FixedProxy',
+			'EIP1967Proxy',
+			'GnosisSafeProxy',
+			'DiamondProxy',
+			'PROXIABLEProxy',
+			'ZeppelinOSProxy',
+			'SequenceWalletProxy',
+		]),
+	),
+	implementations: z.array(
+		z.object({
+			address: z.string(),
+		}),
+	),
+})
+
 const SoliditySettingsSchema = z.object({
 	remappings: z.optional(z.array(z.string())),
 	optimizer: z.optional(
@@ -59,6 +80,7 @@ export const ContractVerificationLookupSchema = z.object({
 		fullyQualifiedName: z.string(),
 		compilerSettings: SoliditySettingsSchema,
 	}),
+	proxyResolution: z.nullable(ProxyResolutionSchema),
 })
 
 export type ContractSource = z.infer<typeof ContractVerificationLookupSchema>
@@ -77,7 +99,10 @@ export async function fetchContractSourceDirect(params: {
 	const apiUrl = new URL(
 		`${CONTRACT_VERIFICATION_API_BASE_URL}/${chainId}/${address.toLowerCase()}`,
 	)
-	apiUrl.searchParams.set('fields', 'stdJsonInput,abi,compilation')
+	apiUrl.searchParams.set(
+		'fields',
+		'stdJsonInput,abi,compilation,proxyResolution',
+	)
 
 	const response = await fetch(apiUrl.toString(), { signal })
 

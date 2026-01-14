@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { ContractFeatureCard } from '#comps/Contract.tsx'
+import { ProxyBadge } from '#comps/ProxyBadge.tsx'
 import { cx } from '#lib/css'
 import type { ContractSource } from '#lib/domain/contract-source.ts'
 import { useCopy, useCopyPermalink } from '#lib/hooks'
@@ -38,6 +39,7 @@ export function SourceSection(props: ContractSource) {
 		compilation,
 		verifiedAt,
 		runtimeMatch,
+		proxyResolution,
 	} = props
 
 	const optimizerText = getOptimizerText(compilation)
@@ -75,6 +77,9 @@ export function SourceSection(props: ContractSource) {
 			]}
 		>
 			<div className="flex flex-col gap-2">
+				{proxyResolution?.isProxy && (
+					<ProxyBadge proxyResolution={proxyResolution} className="mb-1" />
+				)}
 				{Object.entries(stdJsonInput.sources).map(([fileName, source]) => (
 					<SourceFile
 						key={fileName}

@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/containers": "^0.0.31",
+		"@shazow/whatsabi": "catalog:",
 		"cbor-x": "^1.6.0",
 		"drizzle-orm": "^0.45.1",
 		"hono": "catalog:",

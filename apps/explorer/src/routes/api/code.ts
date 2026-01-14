@@ -107,7 +107,10 @@ export const Route = createFileRoute('/api/code')({
 				const apiUrl = new URL(
 					`${CONTRACT_VERIFICATION_API_BASE_URL}/${parsedSearchParams.chainid}/${parsedSearchParams.address.toLowerCase()}`,
 				)
-				apiUrl.searchParams.set('fields', 'stdJsonInput,abi,compilation')
+				apiUrl.searchParams.set(
+					'fields',
+					'stdJsonInput,abi,compilation,proxyResolution',
+				)
 				const response = await fetch(apiUrl.toString())
 
 				if (!response.ok)

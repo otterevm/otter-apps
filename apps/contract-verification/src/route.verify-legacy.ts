@@ -25,6 +25,7 @@ import {
 	sourcesTable,
 	verifiedContractsTable,
 } from '#database/schema.ts'
+import { detectProxy } from '#proxy-resolution.ts'
 import { normalizeSourcePath, sourcifyError } from '#utilities.ts'
 
 /**
@@ -497,6 +498,9 @@ legacyVerifyRoute.post('/vyper', async (context) => {
 			}
 		}
 
+		// Detect proxy type from bytecode (no RPC calls)
+		const proxyDetection = await detectProxy(onchainBytecode)
+
 		// Insert verified contract
 		await db
 			.insert(verifiedContractsTable)
@@ -514,6 +518,8 @@ legacyVerifyRoute.post('/vyper', async (context) => {
 					runtimeMatchResult.transformations.length > 0
 						? JSON.stringify(runtimeMatchResult.transformations)
 						: null,
+				isProxy: proxyDetection?.isProxy ?? null,
+				proxyType: proxyDetection?.proxyType ?? null,
 				createdBy: auditUser,
 				updatedBy: auditUser,
 			})

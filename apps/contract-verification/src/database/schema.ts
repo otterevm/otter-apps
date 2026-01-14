@@ -310,6 +310,10 @@ export const verifiedContractsTable = p.sqliteTable(
 		runtimeMetadataMatch: s.integer('runtime_metadata_match', {
 			mode: 'boolean',
 		}),
+		/** Whether this contract is a proxy (detected from bytecode at verification time) */
+		isProxy: s.integer('is_proxy', { mode: 'boolean' }),
+		/** Proxy type if isProxy is true (e.g., 'EIP1967Proxy', 'EIP1167Proxy') */
+		proxyType: s.text('proxy_type'),
 	}),
 	(table) => [
 		p.index('verified_contracts_deployment_id').on(table.deploymentId),

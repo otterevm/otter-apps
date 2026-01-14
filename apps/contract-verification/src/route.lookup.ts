@@ -15,6 +15,7 @@ import {
 	sourcesTable,
 	verifiedContractsTable,
 } from '#database/schema.ts'
+import { resolveProxy } from '#proxy-resolution.ts'
 import { sourcifyError } from '#utilities.ts'
 
 /**
@@ -248,38 +249,58 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 				: Promise.resolve([]),
 		])
 
-		// Fetch sources
-		const sourcesResult = await db
-			.select({
-				path: compiledContractsSourcesTable.path,
-				content: sourcesTable.content,
-				sourceHash: sourcesTable.sourceHash,
-			})
-			.from(compiledContractsSourcesTable)
-			.innerJoin(
-				sourcesTable,
-				eq(compiledContractsSourcesTable.sourceHash, sourcesTable.sourceHash),
-			)
-			.where(eq(compiledContractsSourcesTable.compilationId, row.compilationId))
+		// Resolve proxy using cached bytecode to skip eth_getCode RPC call
+		const runtimeBytecode = runtimeCode[0]?.code
+			? Hex.fromBytes(new Uint8Array(runtimeCode[0].code as ArrayBuffer))
+			: undefined
 
-		// Fetch signatures
-		const signaturesResult = await db
-			.select({
-				signature: signaturesTable.signature,
-				signatureType: compiledContractsSignaturesTable.signatureType,
-				signatureHash32: signaturesTable.signatureHash32,
-			})
-			.from(compiledContractsSignaturesTable)
-			.innerJoin(
-				signaturesTable,
-				eq(
-					compiledContractsSignaturesTable.signatureHash32,
-					signaturesTable.signatureHash32,
+		// Run proxy resolution and DB queries in parallel
+		const [proxyResolution, sourcesResult, signaturesResult] = await Promise.all(
+			[
+				resolveProxy(
+					row.chainId,
+					formattedAddress as `0x${string}`,
+					runtimeBytecode,
 				),
-			)
-			.where(
-				eq(compiledContractsSignaturesTable.compilationId, row.compilationId),
-			)
+				db
+					.select({
+						path: compiledContractsSourcesTable.path,
+						content: sourcesTable.content,
+						sourceHash: sourcesTable.sourceHash,
+					})
+					.from(compiledContractsSourcesTable)
+					.innerJoin(
+						sourcesTable,
+						eq(
+							compiledContractsSourcesTable.sourceHash,
+							sourcesTable.sourceHash,
+						),
+					)
+					.where(
+						eq(compiledContractsSourcesTable.compilationId, row.compilationId),
+					),
+				db
+					.select({
+						signature: signaturesTable.signature,
+						signatureType: compiledContractsSignaturesTable.signatureType,
+						signatureHash32: signaturesTable.signatureHash32,
+					})
+					.from(compiledContractsSignaturesTable)
+					.innerJoin(
+						signaturesTable,
+						eq(
+							compiledContractsSignaturesTable.signatureHash32,
+							signaturesTable.signatureHash32,
+						),
+					)
+					.where(
+						eq(
+							compiledContractsSignaturesTable.compilationId,
+							row.compilationId,
+						),
+					),
+			],
+		)
 
 		// Build sources object, preferring normalized (relative) paths over absolute paths
 		const sources: Record<string, { content: string }> = {}
@@ -478,7 +499,7 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 			},
 			stdJsonInput,
 			stdJsonOutput,
-			proxyResolution: null, // Not implemented yet
+			proxyResolution,
 		}
 
 		// Apply field filtering
