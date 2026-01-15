@@ -113,6 +113,8 @@
 		"andMore": "és még {{count}}"
 	},
 	"a11y": {
+		"open": "Megnyitás",
+		"close": "Bezárás",
 		"accessKeyNotFound": "A hozzáférési kulcs nem található a helyi tárolóban. A másik eszközön létrehozott kulcsok itt nem használhatók."
 	}
 }

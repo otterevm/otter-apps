@@ -113,6 +113,8 @@
 		"andMore": "dan {{count}} lagi"
 	},
 	"a11y": {
+		"open": "Buka",
+		"close": "Tutup",
 		"accessKeyNotFound": "Kunci akses tidak ditemui dalam storan tempatan. Kunci yang dicipta pada peranti lain tidak boleh digunakan di sini."
 	}
 }

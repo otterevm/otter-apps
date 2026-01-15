@@ -62,6 +62,7 @@ import EyeOffIcon from '~icons/lucide/eye-off'
 import ChevronDownIcon from '~icons/lucide/chevron-down'
 
 import ReceiptIcon from '~icons/lucide/receipt'
+import BoxIcon from '~icons/lucide/box'
 import XIcon from '~icons/lucide/x'
 
 import SearchIcon from '~icons/lucide/search'
@@ -1023,7 +1024,10 @@ function AddressView() {
 			<div className="pb-3">
 				<div className="flex items-center justify-between mb-5">
 					<Link to="/" className="flex items-center gap-2 press-down">
-						<div className="size-[28px] bg-black dark:bg-white rounded-[3px] flex items-center justify-center">
+						<div
+							className="size-[28px] rounded-[3px] flex items-center justify-center"
+							style={{ backgroundColor: 'light-dark(#202020, #fcfcfc)' }}
+						>
 							<svg
 								width="22"
 								height="22"
@@ -1034,7 +1038,7 @@ function AddressView() {
 								<title>Tempo logo</title>
 								<path
 									d="M123.273 190.794H93.445L121.09 105.318H85.7334L93.445 80.2642H191.95L184.238 105.318H150.773L123.273 190.794Z"
-									className="fill-white dark:fill-black"
+									style={{ fill: 'light-dark(#f5f5f5, #0a0a0a)' }}
 								/>
 							</svg>
 						</div>
@@ -3410,7 +3414,7 @@ function ActivitySection({
 					{selectedBlock === undefined ? (
 						<div className="flex flex-col items-center justify-center min-h-[80px] py-6 gap-2">
 							<div className="size-10 rounded-full bg-base-alt flex items-center justify-center">
-								<ReceiptIcon className="size-5 text-tertiary" />
+								<BoxIcon className="size-5 text-tertiary" />
 							</div>
 							<p className="text-[13px] text-secondary">
 								{t('portfolio.selectBlockToView') ||

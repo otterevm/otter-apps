@@ -146,6 +146,8 @@
 		"andMore": "and {{count}} more"
 	},
 	"a11y": {
+		"open": "Open",
+		"close": "Close",
 		"skipToMain": "Skip to main content",
 		"loading": "Loading",
 		"loadingAssets": "Loading assets",

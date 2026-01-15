@@ -113,6 +113,8 @@
 		"andMore": "ve {{count}} daha"
 	},
 	"a11y": {
+		"open": "Aç",
+		"close": "Kapat",
 		"accessKeyNotFound": "Erişim anahtarı yerel depolamada bulunamadı. Başka bir cihazda oluşturulan anahtarlar burada kullanılamaz."
 	}
 }

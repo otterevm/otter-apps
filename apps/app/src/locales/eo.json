@@ -113,6 +113,8 @@
 		"andMore": "kaj {{count}} pli"
 	},
 	"a11y": {
+		"open": "Malfermi",
+		"close": "Fermi",
 		"accessKeyNotFound": "Alirŝlosilo ne trovita en loka stokado. Ŝlosiloj kreitaj sur alia aparato ne povas esti uzataj ĉi tie."
 	}
 }

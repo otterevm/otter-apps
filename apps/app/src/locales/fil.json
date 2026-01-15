@@ -113,6 +113,8 @@
 		"andMore": "at {{count}} pa"
 	},
 	"a11y": {
+		"open": "Buksan",
+		"close": "Isara",
 		"accessKeyNotFound": "Hindi natagpuan ang access key sa local storage. Hindi magagamit dito ang mga key na ginawa sa ibang device."
 	}
 }

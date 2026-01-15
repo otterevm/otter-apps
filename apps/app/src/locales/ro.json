@@ -113,6 +113,8 @@
 		"andMore": "și încă {{count}}"
 	},
 	"a11y": {
+		"open": "Deschide",
+		"close": "Închide",
 		"accessKeyNotFound": "Cheia de acces nu a fost găsită în stocarea locală. Cheile create pe alt dispozitiv nu pot fi folosite aici."
 	}
 }

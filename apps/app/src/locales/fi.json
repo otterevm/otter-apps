@@ -113,6 +113,8 @@
 		"andMore": "ja {{count}} lisää"
 	},
 	"a11y": {
+		"open": "Avaa",
+		"close": "Sulje",
 		"accessKeyNotFound": "Käyttöoikeusavainta ei löydy paikallisesta tallennustilasta. Toisella laitteella luotuja avaimia ei voi käyttää täällä."
 	}
 }

@@ -235,8 +235,8 @@ export namespace TxDescription {
 				const displayText = translationKey ? t(translationKey) : part.value
 				return (
 					<span
-						className="inline-flex items-center gap-1 h-[24px] px-[8px] capitalize rounded-full shrink-0"
-						style={{ color, backgroundColor: bg }}
+						className="inline-flex items-center gap-1 h-[24px] px-[8px] capitalize shrink-0"
+						style={{ color, backgroundColor: bg, borderRadius: '9999px' }}
 					>
 						{icon}
 						{displayText}

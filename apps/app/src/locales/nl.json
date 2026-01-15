@@ -113,6 +113,8 @@
 		"andMore": "en {{count}} meer"
 	},
 	"a11y": {
+		"open": "Openen",
+		"close": "Sluiten",
 		"accessKeyNotFound": "Toegangssleutel niet gevonden in lokale opslag. Sleutels die op een ander apparaat zijn gemaakt, kunnen hier niet worden gebruikt."
 	}
 }

@@ -18,7 +18,7 @@ export namespace Layout {
 	export function Content(props: PropsWithChildren) {
 		return (
 			<div
-				className="ml-[calc(45vw+8px)] flex w-full flex-1 flex-col py-3 max-md:ml-0 max-md:py-0"
+				className="ml-[calc(45vw+8px)] flex w-full flex-1 flex-col pt-1 pb-3 max-md:ml-0 max-md:pt-3 max-md:pb-0"
 				{...props}
 			>
 				<div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 max-md:px-3 max-md:max-w-full">

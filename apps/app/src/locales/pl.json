@@ -113,6 +113,8 @@
 		"andMore": "i {{count}} więcej"
 	},
 	"a11y": {
+		"open": "Otwórz",
+		"close": "Zamknij",
 		"accessKeyNotFound": "Klucz dostępu nie został znaleziony w pamięci lokalnej. Klucze utworzone na innym urządzeniu nie mogą być tutaj używane."
 	}
 }

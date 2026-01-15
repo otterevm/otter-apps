@@ -687,13 +687,13 @@ function CommandMenuPortal({
 						<kbd className="px-2 py-0.5 bg-white/10 rounded-md border border-white/10">
 							↵
 						</kbd>
-						<span>Open</span>
+						<span>{t('a11y.open')}</span>
 					</span>
 					<span className="flex items-center gap-2">
 						<kbd className="px-2 py-0.5 bg-white/10 rounded-md border border-white/10">
 							esc
 						</kbd>
-						<span>{view !== 'main' ? 'Back' : 'Close'}</span>
+						<span>{view !== 'main' ? t('common.back') : t('a11y.closeModal')}</span>
 					</span>
 				</div>
 			</div>

@@ -113,6 +113,8 @@
 		"andMore": "och {{count}} till"
 	},
 	"a11y": {
+		"open": "Öppna",
+		"close": "Stäng",
 		"accessKeyNotFound": "Åtkomstnyckel hittades inte i lokal lagring. Nycklar skapade på en annan enhet kan inte användas här."
 	}
 }

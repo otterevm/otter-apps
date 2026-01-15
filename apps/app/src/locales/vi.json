@@ -113,6 +113,8 @@
 		"andMore": "và {{count}} nữa"
 	},
 	"a11y": {
+		"open": "Mở",
+		"close": "Đóng",
 		"accessKeyNotFound": "Không tìm thấy khóa truy cập trong bộ nhớ cục bộ. Các khóa được tạo trên thiết bị khác không thể sử dụng ở đây."
 	}
 }

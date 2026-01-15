@@ -29,7 +29,7 @@ type SettingsProps = {
 export type SettingsView = 'main' | 'feeToken' | 'language'
 
 export const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
-	main: 'Settings',
+	main: 'settings.title',
 	feeToken: 'settings.feeToken',
 	language: 'settings.language',
 }
@@ -120,7 +120,7 @@ export function Settings({
 								{currentFeeAsset?.metadata?.symbol ||
 									(currentFeeToken
 										? shortenAddress(currentFeeToken, 3)
-										: 'Not set')}
+										: t('settings.notSet'))}
 							</span>
 						</span>
 						<ChevronRightIcon className="size-[16px] text-tertiary" />
@@ -140,7 +140,7 @@ export function Settings({
 								{t('settings.language')}
 							</span>
 							<span className="text-[11px] text-tertiary">
-								{currentLangObj?.name || 'English'}
+								{currentLangObj?.name || LANGUAGES.find(l => l.code === 'en')?.name || 'English'}
 							</span>
 						</span>
 						<ChevronRightIcon className="size-[16px] text-tertiary" />

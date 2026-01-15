@@ -113,6 +113,8 @@
 		"andMore": "e altri {{count}}"
 	},
 	"a11y": {
+		"open": "Apri",
+		"close": "Chiudi",
 		"accessKeyNotFound": "Chiave di accesso non trovata nella memoria locale. Le chiavi create su un altro dispositivo non possono essere utilizzate qui."
 	}
 }

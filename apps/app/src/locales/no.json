@@ -113,6 +113,8 @@
 		"andMore": "og {{count}} til"
 	},
 	"a11y": {
+		"open": "Åpne",
+		"close": "Lukk",
 		"accessKeyNotFound": "Tilgangsnøkkel ikke funnet i lokal lagring. Nøkler opprettet på en annen enhet kan ikke brukes her."
 	}
 }

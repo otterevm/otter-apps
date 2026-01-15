@@ -113,6 +113,8 @@
 		"andMore": "a {{count}} dalších"
 	},
 	"a11y": {
+		"open": "Otevřít",
+		"close": "Zavřít",
 		"accessKeyNotFound": "Přístupový klíč nebyl nalezen v místním úložišti. Klíče vytvořené na jiném zařízení zde nelze použít."
 	}
 }

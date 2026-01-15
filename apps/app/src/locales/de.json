@@ -113,6 +113,8 @@
 		"andMore": "und {{count}} mehr"
 	},
 	"a11y": {
+		"open": "Öffnen",
+		"close": "Schließen",
 		"accessKeyNotFound": "Zugriffsschlüssel nicht im lokalen Speicher gefunden. Auf einem anderen Gerät erstellte Schlüssel können hier nicht verwendet werden."
 	}
 }

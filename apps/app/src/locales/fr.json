@@ -113,6 +113,8 @@
 		"andMore": "et {{count}} de plus"
 	},
 	"a11y": {
+		"open": "Ouvrir",
+		"close": "Fermer",
 		"accessKeyNotFound": "Clé d'accès introuvable dans le stockage local. Les clés créées sur un autre appareil ne peuvent pas être utilisées ici."
 	}
 }
