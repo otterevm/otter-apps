@@ -15,6 +15,7 @@ import { AddressHighlightProvider } from '#comps/AddressHighlight'
 import { BreadcrumbsProvider } from '#comps/Breadcrumbs'
 import { ErrorBoundary } from '#comps/ErrorBoundary'
 import { IntroSeenProvider } from '#comps/Intro'
+import { ThemeProvider } from '#lib/theme'
 import { OG_BASE_URL } from '#lib/og'
 import { ProgressLine } from '#comps/ProgressLine'
 import {
@@ -275,7 +276,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					<QueryClientProvider client={queryClient}>
 						<BreadcrumbsProvider>
 							<AddressHighlightProvider>
-								<IntroSeenProvider>{children}</IntroSeenProvider>
+                <IntroSeenProvider>
+                  <ThemeProvider>{children}</ThemeProvider>
+                </IntroSeenProvider>
 							</AddressHighlightProvider>
 						</BreadcrumbsProvider>
 						{import.meta.env.DEV && (
