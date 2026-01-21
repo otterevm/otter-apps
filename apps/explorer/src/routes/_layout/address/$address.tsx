@@ -624,12 +624,34 @@ function RouteComponent() {
 	)
 }
 
+type ContractCreationResponse = {
+	creation: { blockNumber: string; timestamp: string } | null
+	error: string | null
+}
+
+async function fetchContractCreation(
+	address: Address.Address,
+): Promise<ContractCreationResponse> {
+	const response = await fetch(`/api/contract/creation/${address}`)
+	return response.json() as Promise<ContractCreationResponse>
+}
+
+function useContractCreation(address: Address.Address, enabled: boolean) {
+	return useQuery({
+		queryKey: ['contract-creation', address],
+		queryFn: () => fetchContractCreation(address),
+		enabled,
+		staleTime: 60_000,
+	})
+}
+
 function AccountCardWithTimestamps(props: {
 	address: Address.Address
 	assetsData: AssetData[]
 	accountType?: AccountType
 }) {
 	const { address, assetsData, accountType } = props
+	const isContract = accountType === 'contract'
 
 	// fetch the most recent transactions (pg.1)
 	const { data: recentData } = useQuery(
@@ -652,7 +674,7 @@ function AccountCardWithTimestamps(props: {
 		},
 	})
 
-	// Fetch the oldest transaction by sorting ascending
+	// Fetch the oldest transaction by sorting ascending (for non-contracts)
 	const { data: oldestData } = useQuery(
 		transactionsQueryOptions({
 			address,
@@ -665,13 +687,28 @@ function AccountCardWithTimestamps(props: {
 	)
 
 	const oldestTransaction = oldestData?.transactions?.at(0)
-	const { data: createdTimestamp } = useBlock({
+	const { data: oldestTxTimestamp } = useBlock({
 		blockNumber: Hex.toBigInt(oldestTransaction?.blockNumber ?? '0x0'),
 		query: {
 			enabled: Boolean(oldestTransaction?.blockNumber),
 			select: (block) => block.timestamp,
 		},
 	})
+
+	// For contracts without transactions, use binary search to find creation block
+	const noTransactions = !oldestTransaction
+	const { data: contractCreation } = useContractCreation(
+		address,
+		isContract && noTransactions,
+	)
+
+	// Use contract creation timestamp if available, otherwise fall back to oldest tx
+	const createdTimestamp = React.useMemo(() => {
+		if (contractCreation?.creation?.timestamp) {
+			return BigInt(contractCreation.creation.timestamp)
+		}
+		return oldestTxTimestamp
+	}, [contractCreation, oldestTxTimestamp])
 
 	const totalValue = calculateTotalHoldings(assetsData)
 
