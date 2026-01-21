@@ -652,24 +652,19 @@ function AccountCardWithTimestamps(props: {
 		},
 	})
 
-	// Use the real transaction count (not the approximate total from pagination)
-	// Don't fetch exact count - use API hasMore flag for pagination
-	// This makes the page render instantly without waiting for count query
-	const totalTransactions = 0 // Unknown until user navigates
-	const lastPageOffset = 0 // Can't calculate without total
-
-	const { data: oldestData } = useQuery({
-		...transactionsQueryOptions({
+	// Fetch the oldest transaction by sorting ascending
+	const { data: oldestData } = useQuery(
+		transactionsQueryOptions({
 			address,
-			page: Math.ceil(totalTransactions / 1),
+			page: 1,
 			limit: 1,
-			offset: lastPageOffset,
-			_key: 'account-creation',
+			offset: 0,
+			sort: 'asc',
+			_key: 'account-oldest',
 		}),
-		enabled: totalTransactions > 0,
-	})
+	)
 
-	const [oldestTransaction] = oldestData?.transactions ?? []
+	const oldestTransaction = oldestData?.transactions?.at(0)
 	const { data: createdTimestamp } = useBlock({
 		blockNumber: Hex.toBigInt(oldestTransaction?.blockNumber ?? '0x0'),
 		query: {
