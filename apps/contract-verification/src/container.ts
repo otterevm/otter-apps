@@ -1,4 +1,5 @@
 import { Container, type StopParams } from '@cloudflare/containers'
+import { log } from '#utilities.ts'
 
 export class VerificationContainer extends Container<Cloudflare.Env> {
 	defaultPort = 8080
@@ -10,18 +11,22 @@ export class VerificationContainer extends Container<Cloudflare.Env> {
 		if (!response.ok) throw new Error('Container health check failed')
 
 		const data = await response.text()
-		console.info('onStart hook called with data:', data)
+		log.info('container_started', { healthResponse: data })
 	}
 
 	override onStop(stopParams: StopParams): void {
-		if (stopParams.exitCode === 0) console.info('Container stopped gracefully')
-		else console.warn('Container stopped with exit code:', stopParams.exitCode)
-
-		console.info('Container stop reason:', stopParams.reason)
+		if (stopParams.exitCode === 0) {
+			log.info('container_stopped', { exitCode: 0, reason: stopParams.reason })
+		} else {
+			log.warn('container_stopped_unexpectedly', {
+				exitCode: stopParams.exitCode,
+				reason: stopParams.reason,
+			})
+		}
 	}
 
 	override onError(error: unknown): unknown {
-		console.error('onError hook called with error:', error)
+		log.error('container_error', error)
 		throw error
 	}
 }

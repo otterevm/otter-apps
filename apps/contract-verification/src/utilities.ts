@@ -2,6 +2,92 @@ import { env } from 'cloudflare:workers'
 import type { Context } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
+type LogLevel = 'info' | 'warn' | 'error'
+
+type LogEvent = {
+	level: LogLevel
+	event: string
+	requestId?: string | undefined
+	method?: string | undefined
+	path?: string | undefined
+	chainId?: string | number | undefined
+	address?: string | undefined
+	error?: { type: string; message: string; stack?: string } | undefined
+	durationMs?: number | undefined
+	[key: string]: unknown
+}
+
+function formatError(error: unknown): LogEvent['error'] {
+	if (error instanceof Error) {
+		return {
+			type: error.name,
+			message: error.message,
+			stack: error.stack,
+		}
+	}
+	return { type: 'Unknown', message: String(error) }
+}
+
+function emit(event: LogEvent): void {
+	const { level, ...rest } = event
+	const output = JSON.stringify(rest)
+	switch (level) {
+		case 'info':
+			console.info(output)
+			break
+		case 'warn':
+			console.warn(output)
+			break
+		case 'error':
+			console.error(output)
+			break
+	}
+}
+
+export const log = {
+	info(event: string, data: Omit<LogEvent, 'level' | 'event'> = {}): void {
+		emit({ level: 'info', event, ...data })
+	},
+	warn(event: string, data: Omit<LogEvent, 'level' | 'event'> = {}): void {
+		emit({ level: 'warn', event, ...data })
+	},
+	error(
+		event: string,
+		error: unknown,
+		data: Omit<LogEvent, 'level' | 'event' | 'error'> = {},
+	): void {
+		emit({ level: 'error', event, error: formatError(error), ...data })
+	},
+	fromContext(context: Context) {
+		const base = {
+			requestId: context.get('requestId') as string | undefined,
+			method: context.req.method,
+			path: context.req.path,
+		}
+		return {
+			info(event: string, data: Omit<LogEvent, 'level' | 'event'> = {}): void {
+				emit({ level: 'info', event, ...base, ...data })
+			},
+			warn(event: string, data: Omit<LogEvent, 'level' | 'event'> = {}): void {
+				emit({ level: 'warn', event, ...base, ...data })
+			},
+			error(
+				event: string,
+				error: unknown,
+				data: Omit<LogEvent, 'level' | 'event' | 'error'> = {},
+			): void {
+				emit({
+					level: 'error',
+					event,
+					error: formatError(error),
+					...base,
+					...data,
+				})
+			},
+		}
+	},
+}
+
 /**
  * Normalize absolute source paths to relative paths.
  * Extracts the portion after common patterns like /src/, /contracts/, /lib/

@@ -17,7 +17,7 @@ import { docsRoute } from '#route.docs.tsx'
 import { lookupAllChainContractsRoute, lookupRoute } from '#route.lookup.ts'
 import { verifyRoute } from '#route.verify.ts'
 import { legacyVerifyRoute } from '#route.verify-legacy.ts'
-import { originMatches, sourcifyError } from '#utilities.ts'
+import { log, originMatches, sourcifyError } from '#utilities.ts'
 
 export { VerificationContainer }
 
@@ -63,13 +63,22 @@ app.use(
 		message: { error: 'Rate limit exceeded', retryAfter: '60s' },
 	}),
 )
+
+const BODY_LIMIT = 4 * 1024 * 1024 // 4mb
+
 app.use(
 	bodyLimit({
-		maxSize: 2 * 1024 * 1024, // 2mb
+		maxSize: BODY_LIMIT,
 		onError: (context) => {
-			const message = `[requestId: ${context.req.header('X-Tempo-Request-Id')}] Body limit exceeded`
-			console.error(message)
-			return sourcifyError(context, 413, 'body_too_large', message)
+			log
+				.fromContext(context)
+				.warn('body_limit_exceeded', { maxSizeBytes: BODY_LIMIT })
+			return sourcifyError(
+				context,
+				413,
+				'body_too_large',
+				'Body limit exceeded',
+			)
 		},
 	}),
 )
