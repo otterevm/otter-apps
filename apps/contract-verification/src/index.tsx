@@ -93,7 +93,7 @@ app.use(async (context, next) => {
 	await next()
 	const durationMs = Date.now() - start
 	const status = context.res.status
-	const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info'
+	const level = status >= 400 ? 'warn' : 'info'
 	log.fromContext(context)[level]('request_completed', {
 		status,
 		durationMs,
