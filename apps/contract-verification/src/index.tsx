@@ -17,7 +17,7 @@ import { docsRoute } from '#route.docs.tsx'
 import { lookupAllChainContractsRoute, lookupRoute } from '#route.lookup.ts'
 import { verifyRoute } from '#route.verify.ts'
 import { legacyVerifyRoute } from '#route.verify-legacy.ts'
-import { log, originMatches, sourcifyError } from '#utilities.ts'
+import { handleError, log, originMatches, sourcifyError } from '#utilities.ts'
 
 export { VerificationContainer }
 
@@ -30,6 +30,8 @@ const WHITELISTED_ORIGINS = [
 type AppEnv = { Bindings: Cloudflare.Env }
 const factory = createFactory<AppEnv>()
 const app = factory.createApp()
+
+app.onError(handleError)
 
 // @note: order matters
 app.use('*', requestId({ headerName: 'X-Tempo-Request-Id' }))

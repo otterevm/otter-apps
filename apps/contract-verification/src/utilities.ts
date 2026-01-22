@@ -1,5 +1,6 @@
-import { env } from 'cloudflare:workers'
 import type { Context } from 'hono'
+import { env } from 'cloudflare:workers'
+import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 
 type LogLevel = 'info' | 'warn' | 'error'
@@ -122,6 +123,63 @@ export function sourcifyError(
 			errorId: globalThis.crypto.randomUUID(),
 		},
 		status,
+	)
+}
+
+export type AppErrorOptions = {
+	status: ContentfulStatusCode
+	code: string
+	message: string
+	cause?: unknown
+	context?: Record<string, unknown>
+}
+
+export class AppError extends HTTPException {
+	readonly code: string
+	readonly context: Record<string, unknown>
+
+	constructor(options: AppErrorOptions) {
+		super(options.status, { message: options.message, cause: options.cause })
+		this.code = options.code
+		this.context = options.context ?? {}
+	}
+
+	toJSON() {
+		return {
+			message: this.message,
+			customCode: this.code,
+			errorId: globalThis.crypto.randomUUID(),
+		}
+	}
+}
+
+export function handleError(error: Error, context: Context) {
+	const requestId = context.get('requestId') as string | undefined
+
+	if (error instanceof AppError) {
+		log.fromContext(context).warn(error.code, {
+			...error.context,
+			cause: error.cause ? formatError(error.cause) : undefined,
+		})
+		return context.json(error.toJSON(), error.status)
+	}
+
+	if (error instanceof HTTPException) {
+		log.fromContext(context).warn('http_exception', {
+			status: error.status,
+			cause: error.cause ? formatError(error.cause) : undefined,
+		})
+		return error.getResponse()
+	}
+
+	log.fromContext(context).error('unhandled_error', error)
+	return context.json(
+		{
+			message: 'An unexpected error occurred',
+			customCode: 'internal_error',
+			errorId: requestId ?? globalThis.crypto.randomUUID(),
+		},
+		500,
 	)
 }
 
