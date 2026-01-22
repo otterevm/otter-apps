@@ -87,14 +87,18 @@ app.use('/verify/*', timeout(300_000)) // 5 minutes for legacy verify routes
 app.use('/v2/verify/*', timeout(300_000)) // 5 minutes for v2 verify routes
 app.use(prettyJSON())
 app.use(async (context, next) => {
-	if (context.env.NODE_ENV !== 'development') return await next()
-	const baseLogMessage = `${context.get('requestId')}-[${context.req.method}] ${context.req.path}`
-	if (context.req.method === 'GET') {
-		console.info(`${baseLogMessage}\n`)
-		return await next()
-	}
-	console.info(`${baseLogMessage} \n${await context.req.text()}\n`)
-	return await next()
+	const start = Date.now()
+	await next()
+	const durationMs = Date.now() - start
+	const status = context.res.status
+	const level = status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info'
+	log.fromContext(context)[level]('request_completed', {
+		status,
+		durationMs,
+		ip:
+			context.req.header('CF-Connecting-IP') ??
+			context.req.header('X-Forwarded-For'),
+	})
 })
 
 app.route('/docs', docsRoute)
