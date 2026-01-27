@@ -4,9 +4,7 @@ import { TOKEN_COUNT_MAX } from '#lib/constants'
 import type { StatsApiResponse } from '#routes/api/stats'
 
 async function fetchStats(): Promise<StatsApiResponse['data']> {
-	const response = await fetch(getApiUrl('/api/stats'), {
-		credentials: 'same-origin',
-	})
+	const response = await fetch(getApiUrl('/api/stats'))
 	if (!response.ok) throw new Error('Failed to fetch stats')
 	const json: StatsApiResponse = await response.json()
 	if (json.error) throw new Error(json.error)
@@ -20,21 +18,28 @@ function formatNumber(num: number, max?: number): string {
 	return num.toLocaleString()
 }
 
-export function NetworkStats() {
-	const { data, isLoading } = useQuery({
+export function NetworkStats(): React.JSX.Element | null {
+	const { data, isLoading, isError } = useQuery({
 		queryKey: ['network-stats'],
 		queryFn: fetchStats,
-		staleTime: 60 * 1000,
-		refetchInterval: 60 * 1000,
+		staleTime: 60_000,
+		gcTime: 5 * 60_000,
+		refetchInterval: 60_000,
+		retry: 2,
 	})
 
-	if (isLoading || !data) {
+	if (isLoading) {
 		return (
-			<div className="flex items-center justify-center gap-6 text-[13px] text-tertiary pt-4">
-				<span className="opacity-0">Loading...</span>
-			</div>
+			<section className="text-center px-4 pt-4">
+				<div className="w-16 h-px bg-base-border mx-auto mb-4" />
+				<div className="flex items-center justify-center gap-6 text-[13px] text-tertiary">
+					<span>Loading stats...</span>
+				</div>
+			</section>
 		)
 	}
+
+	if (isError || !data) return null
 
 	const hasAnyData =
 		data.transactions24h > 0 || data.tokens > 0 || data.accounts24h > 0
@@ -68,9 +73,9 @@ export function NetworkStats() {
 	)
 }
 
-function StatItem(props: { value: string; label: string }) {
+function StatItem(props: { value: string; label: string }): React.JSX.Element {
 	return (
-		<div className="flex flex-col items-center gap-0.5 stat-item">
+		<div className="flex flex-col items-center gap-0.5">
 			<span className="text-primary font-medium tabular-nums">
 				{props.value}
 			</span>
