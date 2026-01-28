@@ -5,7 +5,7 @@ import { Address, Hex } from 'ox'
 import * as z from 'zod/mini'
 
 import { zAddress } from '#lib/zod'
-import { config } from '#wagmi.config'
+import { getWagmiConfig } from '#wagmi.config'
 
 const IS = IDX.IndexSupply.create({
 	apiKey: process.env.INDEXER_API_KEY,
@@ -80,7 +80,7 @@ export const Route = createFileRoute('/api/address/events/$address')({
 						return json({ error: 'Limit is too high' }, { status: 400 })
 					const limit = Math.max(1, rawLimit)
 
-					const chainId = config.getClient().chain.id
+					const chainId = getWagmiConfig().getClient().chain.id
 
 					const result = await withTimeout(
 						QB.selectFrom('logs')

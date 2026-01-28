@@ -58,7 +58,7 @@ import {
 import { parseKnownEvent, parseKnownEvents } from '#lib/domain/known-events'
 import * as Tip20 from '#lib/domain/tip20'
 import { DateFormatter, HexFormatter, PriceFormatter } from '#lib/formatting'
-import { useLookupSignature } from '#lib/abi'
+import { useLookupSignature } from '#lib/queries'
 import { useIsMounted, useMediaQuery } from '#lib/hooks'
 import { buildAddressDescription, buildAddressOgImageUrl } from '#lib/og'
 import { withLoaderTiming } from '#lib/profiling'

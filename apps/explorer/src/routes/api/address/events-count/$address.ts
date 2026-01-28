@@ -4,7 +4,7 @@ import * as IDX from 'idxs'
 import { Address } from 'ox'
 
 import { zAddress } from '#lib/zod.ts'
-import { config } from '#wagmi.config.ts'
+import { getWagmiConfig } from '#wagmi.config.ts'
 
 const IS = IDX.IndexSupply.create({
 	apiKey: process.env.INDEXER_API_KEY,
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/api/address/events-count/$address')({
 					const address = zAddress().parse(params.address)
 					Address.assert(address)
 
-					const chainId = config.getClient().chain.id
+					const chainId = getWagmiConfig().getClient().chain.id
 
 					const result = await withTimeout(
 						QB.selectFrom('logs')
