@@ -10,22 +10,17 @@ import {
 	useNavigate,
 	useRouter,
 } from '@tanstack/react-router'
-import { Address as OxAddress, Hex } from 'ox'
+import * as Address from 'ox/Address'
+import * as Hex from 'ox/Hex'
 import * as React from 'react'
-import { Hooks } from 'tempo.ts/wagmi'
-import { formatUnits, isHash, type RpcTransaction as Transaction } from 'viem'
-import { Abis } from 'viem/tempo'
-import { useBlock } from 'wagmi'
-import {
-	getBlock,
-	getChainId,
-	getTransaction,
-	getTransactionReceipt,
-	readContract,
-} from 'wagmi/actions'
+import type { RpcTransaction as Transaction } from 'viem'
+import { formatUnits, isHash } from 'viem'
+import { useBlock, useChainId, usePublicClient } from 'wagmi'
+import { type GetBlockReturnType, getBlock, getChainId } from 'wagmi/actions'
 import * as z from 'zod/mini'
 import { AccountCard } from '#comps/AccountCard'
-import { ContractTabContent, InteractTabContent } from '#comps/Contract.tsx'
+import { Breadcrumbs } from '#comps/Breadcrumbs'
+import { ContractTabContent, InteractTabContent } from '#comps/Contract'
 import { DataGrid } from '#comps/DataGrid'
 import { Midcut } from '#comps/Midcut'
 import { NotFound } from '#comps/NotFound'
@@ -46,13 +41,14 @@ import {
 	TransactionTotal,
 	useTransactionDataFromBatch,
 } from '#comps/TxTransactionRow'
-import { cx } from '#cva.config.ts'
+import { cx } from '#lib/css'
+import { type AccountType, getAccountType } from '#lib/account'
 import {
 	type ContractSource,
 	contractSourceQueryOptions,
 	fetchContractSourceDirect,
 	useContractSourceQueryOptions,
-} from '#lib/domain/contract-source.ts'
+} from '#lib/domain/contract-source'
 import {
 	type ContractInfo,
 	extractContractAbi,
@@ -65,10 +61,11 @@ import { DateFormatter, HexFormatter, PriceFormatter } from '#lib/formatting'
 import { useLookupSignature } from '#lib/abi'
 import { useIsMounted, useMediaQuery } from '#lib/hooks'
 import { buildAddressDescription, buildAddressOgImageUrl } from '#lib/og'
+import { withLoaderTiming } from '#lib/profiling'
 import {
 	type TransactionsData,
 	transactionsQueryOptions,
-} from '#lib/queries/account.ts'
+} from '#lib/queries/account'
 import {
 	type AddressEventData,
 	type AddressEventsApiResponse,
@@ -76,21 +73,40 @@ import {
 	addressEventsQueryOptions,
 	addressEventsCountQueryOptions,
 } from '#lib/queries/address-events.ts'
-import { config, getConfig } from '#wagmi.config.ts'
+import { getWagmiConfig } from '#wagmi.config.ts'
+import { getApiUrl } from '#lib/env.ts'
 
-async function fetchAddressTotalValue(address: OxAddress.Address) {
+async function fetchAddressTotalValue(address: Address.Address) {
 	const response = await fetch(
-		`${__BASE_URL__}/api/address/total-value/${address}`,
+		getApiUrl(`/api/address/total-value/${address}`),
 		{ headers: { 'Content-Type': 'application/json' } },
 	)
 	return response.json() as Promise<{ totalValue: number }>
 }
 
-async function fetchAddressTotalCount(address: OxAddress.Address) {
-	const response = await fetch(
-		`${__BASE_URL__}/api/address/txs-count/${address}`,
-		{ headers: { 'Content-Type': 'application/json' } },
-	)
+type TokenBalance = {
+	token: Address.Address
+	balance: string
+	name?: string
+	symbol?: string
+	decimals?: number
+	currency?: string
+}
+
+async function fetchAddressBalances(address: Address.Address) {
+	const response = await fetch(getApiUrl(`/api/address/balances/${address}`), {
+		headers: { 'Content-Type': 'application/json' },
+	})
+	return response.json() as Promise<{
+		balances: TokenBalance[]
+		error?: string
+	}>
+}
+
+async function fetchAddressTotalCount(address: Address.Address) {
+	const response = await fetch(getApiUrl(`/api/address/txs-count/${address}`), {
+		headers: { 'Content-Type': 'application/json' },
+	})
 	if (!response.ok) throw new Error('Failed to fetch total transaction count')
 	const {
 		data: safeData,
@@ -106,22 +122,25 @@ async function fetchAddressTotalCount(address: OxAddress.Address) {
 
 function useBatchTransactionData(
 	transactions: Transaction[],
-	viewer: OxAddress.Address,
+	viewer: Address.Address,
 ) {
 	const hashes = React.useMemo(
 		() => transactions.map((tx) => tx.hash).filter(isHash),
 		[transactions],
 	)
 
+	const chainId = useChainId()
+	const client = usePublicClient({ chainId })
+
 	const queries = useQueries({
 		queries: hashes.map((hash) => ({
 			queryKey: ['tx-data-batch', viewer, hash],
 			queryFn: async (): Promise<TransactionData | null> => {
-				const cfg = getConfig()
-				const receipt = await getTransactionReceipt(cfg, { hash })
+				const receipt = await client.getTransactionReceipt({ hash })
+				// TODO: investigate & consider batch/multicall
 				const [block, transaction, getTokenMetadata] = await Promise.all([
-					getBlock(cfg, { blockHash: receipt.blockHash }),
-					getTransaction(config, { hash: receipt.transactionHash }),
+					client.getBlock({ blockHash: receipt.blockHash }),
+					client.getTransaction({ hash: receipt.transactionHash }),
 					Tip20.metadataFromLogs(receipt.logs),
 				])
 				const knownEvents = parseKnownEvents(receipt, {
@@ -129,9 +148,10 @@ function useBatchTransactionData(
 					getTokenMetadata,
 					viewer,
 				})
-				return { receipt, block, knownEvents }
+				return { receipt, block: block as GetBlockReturnType, knownEvents }
 			},
 			staleTime: 60_000,
+			enabled: hashes.length > 0,
 		})),
 	})
 
@@ -149,86 +169,56 @@ function useBatchTransactionData(
 	return { transactionDataMap, isLoading }
 }
 
-const assets = [
-	'0x20c0000000000000000000000000000000000000',
-	'0x20c0000000000000000000000000000000000001',
-	'0x20c0000000000000000000000000000000000002',
-	'0x20c0000000000000000000000000000000000003',
-] as const
-
 type AssetData = {
-	address: OxAddress.Address
-	metadata: { name?: string; symbol?: string; decimals?: number } | undefined
+	address: Address.Address
+	metadata:
+		| { name?: string; symbol?: string; decimals?: number; currency?: string }
+		| undefined
 	balance: bigint | undefined
 }
 
-function useAssetsData(accountAddress: OxAddress.Address): AssetData[] {
-	// Track hydration to avoid SSR/client mismatch with cached query data
-	const isMounted = useIsMounted()
+function balancesQueryOptions(address: Address.Address) {
+	return {
+		queryKey: ['address-balances', address],
+		queryFn: () => fetchAddressBalances(address),
+		staleTime: 60_000,
+	}
+}
 
-	const meta0 = Hooks.token.useGetMetadata({ token: assets[0] })
-	const meta1 = Hooks.token.useGetMetadata({ token: assets[1] })
-	const meta2 = Hooks.token.useGetMetadata({ token: assets[2] })
-	const meta3 = Hooks.token.useGetMetadata({ token: assets[3] })
-
-	const bal0 = Hooks.token.useGetBalance({
-		token: assets[0],
-		account: accountAddress,
-	})
-	const bal1 = Hooks.token.useGetBalance({
-		token: assets[1],
-		account: accountAddress,
-	})
-	const bal2 = Hooks.token.useGetBalance({
-		token: assets[2],
-		account: accountAddress,
-	})
-	const bal3 = Hooks.token.useGetBalance({
-		token: assets[3],
-		account: accountAddress,
+function useBalancesData(
+	accountAddress: Address.Address,
+	initialData?: { balances: TokenBalance[] },
+): {
+	data: AssetData[]
+	isLoading: boolean
+} {
+	const { data, isLoading } = useQuery({
+		...balancesQueryOptions(accountAddress),
+		initialData,
 	})
 
-	return React.useMemo(
-		() => [
-			{
-				address: assets[0],
-				metadata: isMounted ? meta0.data : undefined,
-				balance: isMounted ? bal0.data : undefined,
+	const assetsData = React.useMemo(() => {
+		if (!data?.balances) return []
+		return data.balances.map((token) => ({
+			address: token.token,
+			metadata: {
+				name: token.name,
+				symbol: token.symbol,
+				decimals: token.decimals,
+				currency: token.currency,
 			},
-			{
-				address: assets[1],
-				metadata: isMounted ? meta1.data : undefined,
-				balance: isMounted ? bal1.data : undefined,
-			},
-			{
-				address: assets[2],
-				metadata: isMounted ? meta2.data : undefined,
-				balance: isMounted ? bal2.data : undefined,
-			},
-			{
-				address: assets[3],
-				metadata: isMounted ? meta3.data : undefined,
-				balance: isMounted ? bal3.data : undefined,
-			},
-		],
-		[
-			isMounted,
-			meta0.data,
-			meta1.data,
-			meta2.data,
-			meta3.data,
-			bal0.data,
-			bal1.data,
-			bal2.data,
-			bal3.data,
-		],
-	)
+			balance: BigInt(token.balance),
+		}))
+	}, [data])
+
+	return { data: assetsData, isLoading }
 }
 
 function calculateTotalHoldings(assetsData: AssetData[]): number | undefined {
 	const PRICE_PER_TOKEN = 1
 	let total: number | undefined
 	for (const asset of assetsData) {
+		if (asset.metadata?.currency !== 'USD') continue
 		const decimals = asset.metadata?.decimals
 		const balance = asset.balance
 		if (decimals === undefined || balance === undefined) continue
@@ -243,6 +233,8 @@ const defaultSearchValues = {
 	limit: 10,
 	tab: 'history',
 } as const
+
+const ASSETS_PER_PAGE = 10
 
 const TabSchema = z.prefault(
 	z.enum(['history', 'assets', 'events', 'contract', 'interact']),
@@ -276,161 +268,188 @@ export const Route = createFileRoute('/_layout/address/$address')({
 		middlewares: [stripSearchParams(defaultSearchValues)],
 	},
 	loaderDeps: ({ search: { page, limit, live } }) => ({ page, limit, live }),
-	loader: async ({ deps: { page, limit, live }, params, context }) => {
-		const { address } = params
-		// Only throw notFound for truly invalid addresses
-		if (!OxAddress.validate(address))
-			throw notFound({
-				routeId: rootRouteId,
-				data: { error: 'Invalid address format' },
-			})
-
-		const offset = (page - 1) * limit
-		const chainId = getChainId(config)
-
-		// check if it's a known contract from our registry
-		let contractInfo = getContractInfo(address)
-
-		// Get bytecode to check if this is a contract
-		const contractBytecode = contractInfo?.code
-			? contractInfo.code
-			: await getContractBytecode(address).catch((error) => {
-					console.error('[loader] Failed to get bytecode:', error)
-					return undefined
+	loader: ({ deps: { page, limit, live }, params, context }) =>
+		withLoaderTiming('/_layout/address/$address', async () => {
+			const { address } = params
+			// Only throw notFound for truly invalid addresses
+			if (!Address.validate(address))
+				throw notFound({
+					routeId: rootRouteId,
+					data: { error: 'Invalid address format' },
 				})
 
-		// if not in registry, try to extract ABI from bytecode using whatsabi
-		if (!contractInfo && contractBytecode) {
-			const contractAbi = await extractContractAbi(address).catch(
-				() => undefined,
+			const offset = (page - 1) * limit
+			const config = getWagmiConfig()
+			const chainId = getChainId(config)
+
+			// Get bytecode to determine account type
+			const contractBytecode = await getContractBytecode(address).catch(
+				(error) => {
+					console.error('[loader] Failed to get bytecode:', error)
+					return undefined
+				},
 			)
 
-			if (contractAbi) {
-				contractInfo = {
-					name: 'Unknown Contract',
-					description: 'ABI extracted from bytecode',
-					code: contractBytecode,
-					abi: contractAbi,
-					category: 'utility',
-					address,
+			const accountType = getAccountType(contractBytecode)
+
+			// check if it's a known contract from our registry
+			let contractInfo = getContractInfo(address)
+
+			// Only try to extract ABI/fetch source for actual contracts
+			let contractSource: ContractSource | undefined
+			if (accountType === 'contract') {
+				// if not in registry, try to extract ABI from bytecode using whatsabi
+				if (!contractInfo && contractBytecode) {
+					const contractAbi = await extractContractAbi(address).catch(
+						() => undefined,
+					)
+
+					if (contractAbi) {
+						contractInfo = {
+							name: 'Unknown Contract',
+							description: 'ABI extracted from bytecode',
+							code: contractBytecode,
+							abi: contractAbi,
+							category: 'utility',
+							address,
+						}
+					}
 				}
-			}
-		}
 
-		// Try to fetch verified contract source if there's bytecode on chain
-		// Fetch directly from upstream API (bypasses __BASE_URL__ issues during SSR)
-		// Then seed the query cache for client-side hydration
-		let contractSource: ContractSource | undefined
-		if (contractBytecode) {
-			contractSource = await fetchContractSourceDirect({
-				address,
-				chainId,
-			}).catch((error) => {
-				console.error('[loader] Failed to load contract source:', error)
-				return undefined
-			})
-			// Seed the query cache so client hydrates with data already available
-			if (contractSource) {
-				context.queryClient.setQueryData(
-					contractSourceQueryOptions({ address, chainId }).queryKey,
-					contractSource,
+				const queryOptions = contractSourceQueryOptions({
+					address,
+					chainId,
+				})
+				// Try to fetch verified contract source if there's bytecode on chain
+				// Fetch directly from upstream API (bypasses __BASE_URL__ issues during SSR)
+				// Then seed the query cache for client-side hydration
+				// Only seed if no data exists - avoid overwriting highlighted data from client refetch
+				const existingData = context.queryClient.getQueryData(
+					queryOptions.queryKey,
 				)
+				if (!existingData) {
+					contractSource = await fetchContractSourceDirect({
+						address,
+						chainId,
+					}).catch((error) => {
+						console.error('[loader] Failed to load contract source:', error)
+						return undefined
+					})
+					// Seed the query cache so client hydrates with data already available
+					if (contractSource)
+						context.queryClient.setQueryData(
+							queryOptions.queryKey,
+							contractSource,
+						)
+				} else contractSource = existingData
 			}
-		}
 
-		// Show contract tab if we have contractInfo OR verified source
-		const hasContract = Boolean(contractInfo) || Boolean(contractSource)
+			// Add timeout to prevent SSR from hanging on slow queries
+			const QUERY_TIMEOUT_MS = 3_000
+			const timeout = <T,>(
+				promise: Promise<T>,
+				ms: number,
+			): Promise<T | undefined> =>
+				Promise.race([
+					promise,
+					new Promise<undefined>((r) => setTimeout(() => r(undefined), ms)),
+				])
 
-		// Add timeout to prevent SSR from hanging on slow queries
-		const QUERY_TIMEOUT_MS = 3_000
-		const timeout = <T,>(
-			promise: Promise<T>,
-			ms: number,
-		): Promise<T | undefined> =>
-			Promise.race([
-				promise,
-				new Promise<undefined>((r) => setTimeout(() => r(undefined), ms)),
+			const [transactionsData, eventsData, eventsCountData] = await Promise.all([
+				timeout(
+					context.queryClient
+						.ensureQueryData(
+							transactionsQueryOptions({
+								address,
+								page,
+								limit,
+								offset,
+							}),
+						)
+						.catch((error) => {
+							console.error('Fetch transactions error:', error)
+							return undefined
+						}),
+					QUERY_TIMEOUT_MS,
+				),
+				timeout(
+					context.queryClient
+						.ensureQueryData(
+							addressEventsQueryOptions({
+								address,
+								page,
+								limit,
+								offset,
+							}),
+						)
+						.catch((error) => {
+							console.error('Fetch events error:', error)
+							return undefined
+						}),
+					QUERY_TIMEOUT_MS,
+				),
+				timeout(
+					context.queryClient
+						.ensureQueryData(addressEventsCountQueryOptions(address))
+						.catch((error) => {
+							console.error('Fetch events count error:', error)
+							return undefined
+						}),
+					QUERY_TIMEOUT_MS,
+				),
 			])
 
-		const [transactionsData, eventsData, eventsCountData] = await Promise.all([
-			timeout(
+			// Fire off optional loaders without blocking page render
+			// These will populate the cache if successful but won't delay the page load
+			context.queryClient
+				.ensureQueryData({
+					queryKey: ['account-total-value', address],
+					queryFn: () => fetchAddressTotalValue(address),
+					staleTime: 60_000,
+				})
+				.catch((error) => {
+					console.error('Fetch total-value error (non-blocking):', error)
+				})
+
+			const balancesData = await timeout(
 				context.queryClient
-					.ensureQueryData(
-						transactionsQueryOptions({
-							address,
-							page,
-							limit,
-							offset,
-						}),
-					)
+					.ensureQueryData(balancesQueryOptions(address))
 					.catch((error) => {
-						console.error('Fetch transactions error:', error)
+						console.error('Fetch balances error:', error)
 						return undefined
 					}),
 				QUERY_TIMEOUT_MS,
-			),
-			timeout(
-				context.queryClient
-					.ensureQueryData(
-						addressEventsQueryOptions({
-							address,
-							page,
-							limit,
-							offset,
-						}),
-					)
-					.catch((error) => {
-						console.error('Fetch events error:', error)
-						return undefined
-					}),
-				QUERY_TIMEOUT_MS,
-			),
-			timeout(
-				context.queryClient
-					.ensureQueryData(addressEventsCountQueryOptions(address))
-					.catch((error) => {
-						console.error('Fetch events count error:', error)
-						return undefined
-					}),
-				QUERY_TIMEOUT_MS,
-			),
-		])
+			)
 
-		// Fire off optional loaders without blocking page render
-		// These will populate the cache if successful but won't delay the page load
-		context.queryClient
-			.ensureQueryData({
-				queryKey: ['account-total-value', address],
-				queryFn: () => fetchAddressTotalValue(address),
-				staleTime: 60_000,
-			})
-			.catch((error) => {
-				console.error('Fetch total-value error (non-blocking):', error)
-			})
+			// For SSR, provide placeholder values - client will fetch real data
+			const txCountResponse = undefined
+			const totalValueResponse = undefined
 
-		// For SSR, provide placeholder values - client will fetch real data
-		const txCountResponse = undefined
-		const totalValueResponse = undefined
-
-		return {
-			live,
-			address,
-			page,
-			limit,
-			offset,
-			hasContract,
-			contractInfo,
-			contractSource,
-			transactionsData,
-			eventsData,
-			eventsCountData,
-			txCountResponse,
-			totalValueResponse,
-		}
-	},
+			return {
+				live,
+				address,
+				page,
+				limit,
+				offset,
+				accountType,
+				contractInfo,
+				contractSource,
+				transactionsData,
+				eventsData,
+				eventsCountData,
+				balancesData,
+				txCountResponse,
+				totalValueResponse,
+			}
+		}),
 	head: async ({ params, loaderData }) => {
-		const isContract = Boolean(loaderData?.hasContract)
-		const label = isContract ? 'Contract' : 'Address'
+		const accountType = loaderData?.accountType ?? 'empty'
+		const label =
+			accountType === 'contract'
+				? 'Contract'
+				: accountType === 'account'
+					? 'Account'
+					: 'Address'
 		const title = `${label} ${HexFormatter.truncate(params.address as Hex.Hex)} ⋅ Tempo Explorer`
 
 		const txCount = 0
@@ -446,54 +465,25 @@ export const Route = createFileRoute('/_layout/address/$address')({
 				new Promise<null>((r) => setTimeout(() => r(null), ms)),
 			])
 
-		try {
-			// Fetch holdings by directly reading balances from known tokens
-			const accountAddress = params.address as OxAddress.Address
-			const tokenResults = await timeout(
-				Promise.all(
-					assets.map(async (tokenAddress) => {
-						try {
-							const [balance, decimals] = await Promise.all([
-								readContract(config, {
-									address: tokenAddress,
-									abi: Abis.tip20,
-									functionName: 'balanceOf',
-									args: [accountAddress],
-								}),
-								readContract(config, {
-									address: tokenAddress,
-									abi: Abis.tip20,
-									functionName: 'decimals',
-								}),
-							])
-							return { balance, decimals }
-						} catch {
-							return null
-						}
-					}),
-				),
-				TIMEOUT_MS,
+		// Calculate holdings from prefetched balances data
+		if (loaderData?.balancesData?.balances) {
+			const totalValue = calculateTotalHoldings(
+				loaderData.balancesData.balances.map((b) => ({
+					address: b.token,
+					metadata: {
+						decimals: b.decimals,
+						currency: b.currency,
+					},
+					balance: BigInt(b.balance),
+				})),
 			)
-
-			if (tokenResults) {
-				const PRICE_PER_TOKEN = 1
-				let totalValue = 0
-				for (const result of tokenResults) {
-					if (result && result.balance > 0n) {
-						totalValue +=
-							Number(formatUnits(result.balance, result.decimals)) *
-							PRICE_PER_TOKEN
-					}
-				}
-				if (totalValue > 0) {
-					holdings = PriceFormatter.format(totalValue, { format: 'short' })
-				}
+			if (totalValue && totalValue > 0) {
+				holdings = PriceFormatter.format(totalValue, { format: 'short' })
 			}
-		} catch {
-			// Ignore errors, holdings will be '—'
 		}
 
 		try {
+			const config = getWagmiConfig()
 			// Get the most recent transaction for lastActive (already in loaderData)
 			const recentTx = loaderData?.transactionsData?.transactions?.at(0)
 			if (recentTx?.blockNumber) {
@@ -520,7 +510,7 @@ export const Route = createFileRoute('/_layout/address/$address')({
 			address: params.address,
 			holdings,
 			txCount,
-			isContract,
+			accountType,
 			lastActive,
 		})
 
@@ -532,7 +522,7 @@ export const Route = createFileRoute('/_layout/address/$address')({
 				{ property: 'og:description', content: description },
 				{ name: 'twitter:description', content: description },
 				{ property: 'og:image', content: ogImageUrl },
-				{ property: 'og:image:type', content: 'image/png' },
+				{ property: 'og:image:type', content: 'image/webp' },
 				{ property: 'og:image:width', content: '1200' },
 				{ property: 'og:image:height', content: '630' },
 				{ name: 'twitter:card', content: 'summary_large_image' },
@@ -549,15 +539,16 @@ function RouteComponent() {
 	const { address } = Route.useParams()
 	const { page, tab, live, limit } = Route.useSearch()
 	const {
-		hasContract,
+		accountType,
 		contractInfo,
 		contractSource,
 		transactionsData,
 		eventsData: initialEventsData,
 		eventsCountData: initialEventsCountData,
+		balancesData,
 	} = Route.useLoaderData()
 
-	OxAddress.assert(address)
+	Address.assert(address)
 
 	const hash = location.hash
 
@@ -566,28 +557,33 @@ function RouteComponent() {
 	const redirectedForHashRef = React.useRef<string | null>(null)
 
 	// When URL has a hash fragment (e.g., #functionName), switch to interact tab
+	const isContract = accountType === 'contract'
+	const hasContract = Boolean(contractInfo || contractSource)
+
 	React.useEffect(() => {
 		// Only redirect if:
 		// 1. We have a hash
-		// 2. Address has a known contract
-		// 3. Not already on interact tab
-		// 4. Haven't already redirected for this specific hash
-		if (
-			hash &&
-			hasContract &&
-			tab !== 'interact' &&
-			redirectedForHashRef.current !== hash
-		) {
-			redirectedForHashRef.current = hash
-			navigate({
-				to: '.',
-				search: { page: 1, tab: 'interact', limit },
-				hash,
-				replace: true,
-				resetScroll: false,
-			})
-		}
-	}, [hash, hasContract, tab, navigate, limit])
+		// 2. Address is a contract
+		// 3. Haven't already redirected for this specific hash
+		if (!hash || !isContract || redirectedForHashRef.current === hash) return
+
+		// Determine which tab the hash should navigate to
+		// TanStack Router's location.hash doesn't include the '#' prefix
+		const isSourceFileHash = hash.startsWith('source-file-')
+		const targetTab = isSourceFileHash ? 'contract' : 'interact'
+
+		// Only redirect if we're not already on the target tab
+		if (tab === targetTab) return
+
+		redirectedForHashRef.current = hash
+		navigate({
+			to: '.',
+			search: { page: 1, tab: targetTab, limit },
+			hash,
+			replace: true,
+			resetScroll: false,
+		})
+	}, [hash, isContract, tab, navigate, limit])
 
 	React.useEffect(() => {
 		// Only preload for history tab (transaction pagination)
@@ -640,7 +636,7 @@ function RouteComponent() {
 							? 4
 							: 0
 
-	const assetsData = useAssetsData(address)
+	const { data: assetsData } = useBalancesData(address, balancesData)
 
 	return (
 		<div
@@ -649,7 +645,12 @@ function RouteComponent() {
 				'grid w-full pt-20 pb-16 px-4 gap-3.5 min-w-0 grid-cols-[auto_1fr] min-[1240px]:max-w-7xl',
 			)}
 		>
-			<AccountCardWithTimestamps address={address} assetsData={assetsData} />
+			<Breadcrumbs className="col-span-full" />
+			<AccountCardWithTimestamps
+				address={address}
+				assetsData={assetsData}
+				accountType={accountType}
+			/>
 			<SectionsWrapper
 				address={address}
 				page={page}
@@ -664,16 +665,18 @@ function RouteComponent() {
 				initialEventsCountData={initialEventsCountData}
 				assetsData={assetsData}
 				live={live}
+				isContract={accountType === 'contract'}
 			/>
 		</div>
 	)
 }
 
 function AccountCardWithTimestamps(props: {
-	address: OxAddress.Address
+	address: Address.Address
 	assetsData: AssetData[]
+	accountType?: AccountType
 }) {
-	const { address, assetsData } = props
+	const { address, assetsData, accountType } = props
 
 	// fetch the most recent transactions (pg.1)
 	const { data: recentData } = useQuery(
@@ -731,12 +734,13 @@ function AccountCardWithTimestamps(props: {
 			createdTimestamp={createdTimestamp}
 			lastActivityTimestamp={lastActivityTimestamp}
 			totalValue={totalValue}
+			accountType={accountType}
 		/>
 	)
 }
 
 function SectionsWrapper(props: {
-	address: OxAddress.Address
+	address: Address.Address
 	page: number
 	limit: number
 	activeSection: number
@@ -749,6 +753,7 @@ function SectionsWrapper(props: {
 	initialEventsCountData: AddressEventsCountResponse | undefined
 	assetsData: AssetData[]
 	live: boolean
+	isContract: boolean
 }) {
 	const {
 		address,
@@ -764,6 +769,7 @@ function SectionsWrapper(props: {
 		initialEventsCountData,
 		assetsData,
 		live,
+		isContract,
 	} = props
 	const { timeFormat, cycleTimeFormat, formatLabel } = useTimeFormat()
 
@@ -772,9 +778,11 @@ function SectionsWrapper(props: {
 
 	// Contract source query - uses cache populated by SSR loader via ensureQueryData
 	// The query will immediately return cached data without flashing
+	// Only enabled for contracts to avoid unnecessary requests for EOAs
 	const contractSourceQuery = useQuery({
 		...useContractSourceQueryOptions({ address }),
 		initialData: contractSource,
+		enabled: isContract,
 	})
 	// Use SSR data until mounted to avoid hydration mismatch, then use query data
 	const resolvedContractSource = isMounted
@@ -806,10 +814,7 @@ function SectionsWrapper(props: {
 	 * (tanstack query may have fresher cached data that differs from SSR)
 	 */
 	const data = isMounted ? queryData : page === 1 ? initialData : queryData
-	const { transactions, total: approximateTotal } = data ?? {
-		transactions: [],
-		total: 0,
-	}
+	const { transactions = [], hasMore = false } = data ?? {}
 
 	// Fetch exact total count in the background (only when on history tab)
 	// Don't cache across tabs/pages - always show "..." until loaded each time
@@ -867,12 +872,6 @@ function SectionsWrapper(props: {
 	// so we can't use exactCount for page calculation - most pages would be empty
 	// Only use after mount to avoid SSR/client hydration mismatch
 	const exactCount = isMounted ? totalCountQuery.data?.data : undefined
-
-	// For pagination: always use hasMore-based estimate
-	// This ensures we only show pages that have data
-	// Use server total directly since we fetch a buffer with all transactions
-	const paginationTotal =
-		approximateTotal > 0 ? approximateTotal : transactions.length
 
 	const isMobile = useMediaQuery('(max-width: 799px)')
 	const mode = isMobile ? 'stacked' : 'tabs'
@@ -941,7 +940,7 @@ function SectionsWrapper(props: {
 				sections={[
 					{
 						title: 'History',
-						totalItems: data && (exactCount ?? paginationTotal),
+						totalItems: data && exactCount,
 						itemsLabel: 'transactions',
 						content: historyError ?? (
 							<DataGrid
@@ -980,7 +979,8 @@ function SectionsWrapper(props: {
 										},
 									}))
 								}
-								totalItems={paginationTotal}
+								totalItems={exactCount ?? transactions.length}
+								pages={exactCount === undefined ? { hasMore } : undefined}
 								displayCount={exactCount}
 								page={page}
 								fetching={isPlaceholderData}
@@ -995,7 +995,7 @@ function SectionsWrapper(props: {
 					},
 					{
 						title: 'Assets',
-						totalItems: assets.length,
+						totalItems: assetsData.length,
 						itemsLabel: 'assets',
 						content: (
 							<DataGrid
@@ -1014,43 +1014,47 @@ function SectionsWrapper(props: {
 									],
 								}}
 								items={(mode) =>
-									assetsData.map((asset) => ({
-										className: 'text-[13px]',
-										cells:
-											mode === 'stacked'
-												? [
-														<AssetName key="name" asset={asset} />,
-														<AssetContract key="contract" asset={asset} />,
-														<AssetAmount key="amount" asset={asset} />,
-													]
-												: [
-														<AssetName key="name" asset={asset} />,
-														<AssetSymbol key="symbol" asset={asset} />,
-														<span key="currency">USD</span>,
-														<AssetAmount key="amount" asset={asset} />,
-														<AssetValue key="value" asset={asset} />,
-													],
-										link: {
-											href: `/token/${asset.address}?a=${address}`,
-											title: `View token ${asset.address}`,
-										},
-									}))
+									assetsData
+										.slice((page - 1) * ASSETS_PER_PAGE, page * ASSETS_PER_PAGE)
+										.map((asset) => ({
+											className: 'text-[13px]',
+											cells:
+												mode === 'stacked'
+													? [
+															<AssetName key="name" asset={asset} />,
+															<AssetContract key="contract" asset={asset} />,
+															<AssetAmount key="amount" asset={asset} />,
+														]
+													: [
+															<AssetName key="name" asset={asset} />,
+															<AssetSymbol key="symbol" asset={asset} />,
+															<AssetCurrency key="currency" asset={asset} />,
+															<AssetAmount key="amount" asset={asset} />,
+															<AssetValue key="value" asset={asset} />,
+														],
+											link: {
+												href: `/token/${asset.address}` as const,
+												search: { a: address },
+												title: `View token ${asset.address}`,
+											},
+										}))
 								}
-								totalItems={assets.length}
-								page={1}
+								totalItems={assetsData.length}
+								page={page}
 								itemsLabel="assets"
-								itemsPerPage={assets.length}
+								itemsPerPage={ASSETS_PER_PAGE}
+								pagination="simple"
 								emptyState="No assets found."
 							/>
 						),
 					},
-					// Events tab - always shown, disabled when no contract
+					// Events tab - visible when it's a contract
 					{
 						title: 'Events',
 						totalItems:
 							eventsData && (exactEventsCount ?? eventsPaginationTotal),
 						itemsLabel: 'events',
-						disabled: !hasContract,
+						visible: hasContract,
 						content: eventsErrorDisplay ?? (
 							<DataGrid
 								columns={{
@@ -1107,7 +1111,7 @@ function SectionsWrapper(props: {
 						title: 'Contract',
 						totalItems: 0,
 						itemsLabel: 'items',
-						disabled: !contractInfo && !resolvedContractSource,
+						visible: Boolean(contractInfo || resolvedContractSource),
 						content: (
 							<ContractTabContent
 								address={address}
@@ -1122,7 +1126,7 @@ function SectionsWrapper(props: {
 						title: 'Interact',
 						totalItems: 0,
 						itemsLabel: 'functions',
-						disabled: !contractInfo && !resolvedContractSource,
+						visible: Boolean(contractInfo || resolvedContractSource),
 						content: (
 							<InteractTabContent
 								address={address}
@@ -1167,7 +1171,7 @@ function TransactionTimeCellInner(props: {
 
 function TransactionDescCell(props: {
 	transaction: Transaction
-	accountAddress: OxAddress.Address
+	accountAddress: Address.Address
 }) {
 	return (
 		<ClientOnly fallback={placeholder}>
@@ -1178,7 +1182,7 @@ function TransactionDescCell(props: {
 
 function TransactionDescCellInner(props: {
 	transaction: Transaction
-	accountAddress: OxAddress.Address
+	accountAddress: Address.Address
 }) {
 	const { transaction, accountAddress } = props
 	const batchData = useTransactionDataFromBatch(transaction.hash)
@@ -1215,8 +1219,7 @@ function TransactionFeeCellInner(props: { hash: Hex.Hex }) {
 	return (
 		<span className="text-tertiary">
 			{PriceFormatter.format(
-				batchData.receipt.effectiveGasPrice *
-					batchData.receipt.cumulativeGasUsed,
+				batchData.receipt.effectiveGasPrice * batchData.receipt.gasUsed,
 				{ decimals: 18, format: 'short' },
 			)}
 		</span>
@@ -1250,7 +1253,7 @@ function EventSignatureCell(props: { selector: Hex.Hex | undefined }) {
 
 function EventDescCell(props: {
 	event: AddressEventData
-	accountAddress: OxAddress.Address
+	accountAddress: Address.Address
 }) {
 	const { event, accountAddress } = props
 
@@ -1289,7 +1292,7 @@ function AssetName(props: { asset: AssetData }) {
 			<TokenIcon
 				address={asset.address}
 				name={asset.metadata?.name}
-				className="size-5"
+				className="size-5!"
 			/>
 			<span className="truncate">{asset.metadata.name}</span>
 		</span>
@@ -1318,6 +1321,12 @@ function AssetContract(props: { asset: AssetData }) {
 	)
 }
 
+function AssetCurrency(props: { asset: AssetData }) {
+	const { asset } = props
+	if (!asset.metadata?.currency) return <span className="text-tertiary">—</span>
+	return <span>{asset.metadata.currency}</span>
+}
+
 function AssetAmount(props: { asset: AssetData }) {
 	const { asset } = props
 	if (asset.metadata?.decimals === undefined || asset.balance === undefined)
@@ -1328,6 +1337,8 @@ function AssetAmount(props: { asset: AssetData }) {
 
 function AssetValue(props: { asset: AssetData }) {
 	const { asset } = props
+	if (asset.metadata?.currency !== 'USD')
+		return <span className="text-tertiary">—</span>
 	if (asset.metadata?.decimals === undefined || asset.balance === undefined)
 		return <span className="text-tertiary">…</span>
 	return (

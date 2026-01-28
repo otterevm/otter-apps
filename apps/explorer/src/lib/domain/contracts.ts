@@ -1,11 +1,16 @@
-import { whatsabi } from '@shazow/whatsabi'
+import { loaders, whatsabi } from '@shazow/whatsabi'
 import type { Address, Hex } from 'ox'
-import type { Abi, AbiFunction, AbiParameter } from 'viem'
-import { toFunctionSelector } from 'viem'
+import type { Abi, AbiEvent, AbiFunction, AbiParameter } from 'viem'
+import {
+	decodeEventLog,
+	getAbiItem as getAbiItem_viem,
+	stringify,
+	toFunctionSelector,
+} from 'viem'
 import { Abis, Addresses } from 'viem/tempo'
-import { getPublicClient } from 'wagmi/actions'
+import { getChainId, getPublicClient } from 'wagmi/actions'
 import { isTip20Address } from '#lib/domain/tip20.ts'
-import { config } from '#wagmi.config.ts'
+import { getWagmiConfig } from '#wagmi.config.ts'
 
 /**
  * Registry of known contract addresses to their ABIs and metadata.
@@ -18,10 +23,143 @@ export type ContractInfo = {
 	code: Hex.Hex
 	abi: Abi
 	/** Category for grouping in UI */
-	category: 'token' | 'system' | 'utility' | 'account'
+	category: 'token' | 'system' | 'utility' | 'account' | 'precompile'
 	/** External documentation link */
 	docsUrl?: string
 	address: Address.Address
+}
+
+function makePrecompile(
+	data: Omit<ContractInfo, 'code' | 'abi' | 'category'>,
+): [Address.Address, ContractInfo] {
+	return [
+		data.address,
+		{ ...data, code: '0x' as Hex.Hex, abi: [] as Abi, category: 'precompile' },
+	]
+}
+
+/**
+ * Ethereum precompile addresses with their metadata.
+ * Precompiles don't use standard ABI encoding - decoding is handled separately.
+ */
+export const precompileRegistry = new Map<Address.Address, ContractInfo>([
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000001',
+		name: 'ecRecover',
+		description: 'Elliptic curve digital signature recovery',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x01',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000002',
+		name: 'sha256',
+		description: 'SHA-256 hash function',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x02',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000003',
+		name: 'ripemd160',
+		description: 'RIPEMD-160 hash function',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x03',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000004',
+		name: 'identity',
+		description: 'Identity (data copy) function',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x04',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000005',
+		name: 'modexp',
+		description: 'Modular exponentiation',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x05',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000006',
+		name: 'ecAdd',
+		description: 'Point addition on elliptic curve alt_bn128',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x06',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000007',
+		name: 'ecMul',
+		description: 'Scalar multiplication on elliptic curve alt_bn128',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x07',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000008',
+		name: 'ecPairing',
+		description: 'Bilinear function on groups on elliptic curve alt_bn128',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x08',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000009',
+		name: 'blake2f',
+		description: 'BLAKE2 compression function F',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x09',
+	}),
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000a',
+		name: 'pointEvaluation',
+		description: 'KZG point evaluation for EIP-4844 blob verification',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0a',
+	}),
+	// Prague BLS12-381 precompiles (EIP-2537).
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000b',
+		name: 'bls12G1Add',
+		description: 'BLS12-381 G1 point addition',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0b',
+	}),
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000c',
+		name: 'bls12G1Msm',
+		description: 'BLS12-381 G1 multi-scalar multiplication',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0c',
+	}),
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000d',
+		name: 'bls12G2Add',
+		description: 'BLS12-381 G2 point addition',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0d',
+	}),
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000e',
+		name: 'bls12G2Msm',
+		description: 'BLS12-381 G2 multi-scalar multiplication',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0e',
+	}),
+	makePrecompile({
+		address: '0x000000000000000000000000000000000000000f',
+		name: 'bls12PairingCheck',
+		description: 'BLS12-381 pairing check',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x0f',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000010',
+		name: 'bls12MapFpToG1',
+		description: 'BLS12-381 map field element to G1 point',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x10',
+	}),
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000011',
+		name: 'bls12MapFp2ToG2',
+		description: 'BLS12-381 map Fp2 element to G2 point',
+		docsUrl: 'https://www.evm.codes/precompiled?fork=osaka#0x11',
+	}),
+	// P256 ECDSA verification (RIP-7212).
+	makePrecompile({
+		address: '0x0000000000000000000000000000000000000100',
+		name: 'p256Verify',
+		description: 'ECDSA signature verification on secp256r1 (P-256)',
+		docsUrl: 'https://www.evm.codes/precompiled#0x100',
+	}),
+])
+
+/**
+ * Check if an address is an Ethereum precompile.
+ */
+export function isPrecompile(address: Address.Address): boolean {
+	return precompileRegistry.has(address.toLowerCase() as Address.Address)
 }
 
 /**
@@ -112,15 +250,15 @@ export const systemContractRegistry = new Map<Address.Address, ContractInfo>(<
 		},
 	],
 	[
-		Addresses.stablecoinExchange,
+		Addresses.stablecoinDex,
 		{
 			name: 'Stablecoin Exchange',
 			code: '0xef',
 			description: 'Enshrined DEX for stablecoin swaps',
-			abi: Abis.stablecoinExchange,
+			abi: Abis.stablecoinDex,
 			category: 'system',
 			docsUrl: 'https://docs.tempo.xyz/documentation/protocol/exchange',
-			address: Addresses.stablecoinExchange,
+			address: Addresses.stablecoinDex,
 		},
 	],
 	[
@@ -135,17 +273,27 @@ export const systemContractRegistry = new Map<Address.Address, ContractInfo>(<
 			address: Addresses.tip403Registry,
 		},
 	],
-
-	// Account Abstraction
 	[
-		Addresses.accountImplementation,
+		Addresses.validator,
 		{
-			name: 'IthacaAccount',
+			name: 'Validator Config',
 			code: '0xef',
-			description: 'Reference account implementation',
-			abi: Abis.tipAccountRegistrar,
-			category: 'account',
-			address: Addresses.accountImplementation,
+			description: 'Manage validator set and configuration',
+			abi: Abis.validator,
+			category: 'system',
+			docsUrl: 'https://docs.tempo.xyz/documentation/protocol/validators',
+			address: Addresses.validator,
+		},
+	],
+	[
+		Addresses.nonceManager,
+		{
+			name: 'Nonce Manager',
+			code: '0xef',
+			description: 'Manage account nonces',
+			abi: [],
+			category: 'system',
+			address: Addresses.nonceManager,
 		},
 	],
 ])
@@ -154,6 +302,7 @@ export const systemContractRegistry = new Map<Address.Address, ContractInfo>(<
  * Known contract registry mapping addresses to their metadata and ABIs.
  */
 export const contractRegistry = new Map<Address.Address, ContractInfo>(<const>[
+	...precompileRegistry.entries(),
 	...systemContractRegistry.entries(),
 	...tip20ContractRegistry.entries(),
 ])
@@ -166,15 +315,14 @@ export function systemAddress(address: Address.Address): boolean {
 }
 
 /**
- * Get contract info by address (case-insensitive)
- * Also handles TIP-20 tokens that aren't explicitly registered
+ * Get contract info by address (case-insensitive).
+ * Also handles TIP-20 tokens that aren't explicitly registered.
  */
 export function getContractInfo(
 	address: Address.Address,
 ): ContractInfo | undefined {
-	const registered = contractRegistry.get(
-		address.toLowerCase() as Address.Address,
-	)
+	const lowerAddress = address.toLowerCase() as Address.Address
+	const registered = contractRegistry.get(lowerAddress)
 	if (registered) return registered
 
 	// Dynamic TIP-20 token detection
@@ -196,16 +344,6 @@ export function getContractInfo(
  */
 export function getContractAbi(address: Address.Address): Abi | undefined {
 	return getContractInfo(address)?.abi
-}
-
-/**
- * Check if an address is a known contract (includes TIP-20 tokens)
- */
-export function isKnownContract(address: Address.Address): boolean {
-	return (
-		contractRegistry.has(address.toLowerCase() as Address.Address) ||
-		isTip20Address(address)
-	)
 }
 
 // ============================================================================
@@ -547,6 +685,7 @@ export function formatOutputValue(value: unknown, _type: string): string {
 export async function getContractBytecode(
 	address: Address.Address,
 ): Promise<Hex.Hex | undefined> {
+	const config = getWagmiConfig()
 	const client = getPublicClient(config)
 	const code = await client.getCode({ address })
 	if (!code || code === '0x') return undefined
@@ -554,35 +693,173 @@ export async function getContractBytecode(
 }
 
 // ============================================================================
-// Whatsabi - ABI extraction from bytecode
+// ABI Item Utilities
 // ============================================================================
 
 /**
- * Attempts to extract an ABI from contract bytecode using whatsabi.autoload.
- * Returns undefined if the address has no code or extraction fails.
+ * Get an ABI item by selector (function selector or event topic)
+ */
+export function getAbiItem({
+	abi,
+	selector,
+}: {
+	abi: Abi
+	selector: Hex.Hex
+}): AbiFunction | undefined {
+	const abiItem =
+		(getAbiItem_viem({
+			abi: abi.map((x) => ({
+				...x,
+				inputs: (x as AbiFunction).inputs || [],
+				outputs: (x as AbiFunction).outputs || [],
+			})),
+			name: selector,
+		}) as AbiFunction) ||
+		abi.find((x) => (x as AbiFunction).name === selector) ||
+		abi.find((x) => (x as { selector?: string }).selector === selector)
+
+	if (!abiItem) return
+
+	return {
+		...abiItem,
+		outputs: abiItem.outputs || [],
+		inputs: abiItem.inputs || [],
+		name: abiItem.name || (abiItem as { selector?: string }).selector || '',
+	} as AbiFunction
+}
+
+/**
+ * Format an ABI value for display
+ */
+export function formatAbiValue(value: unknown): string {
+	if (typeof value === 'bigint') {
+		return value.toString()
+	}
+	if (Array.isArray(value)) {
+		return `[${value.map(formatAbiValue).join(', ')}]`
+	}
+	if (typeof value === 'object' && value !== null) {
+		return stringify(value)
+	}
+	return String(value ?? '')
+}
+
+/**
+ * Decode event log with guessed indexed parameters.
+ * Useful when the ABI doesn't correctly specify which parameters are indexed.
+ * @see https://github.com/paradigmxyz/rivet/blob/fd94089ba4bec65bbf3fa288efbeab7306cb1537/src/utils/abi.ts#L13
+ */
+export function decodeEventLog_guessed(args: {
+	abiItem: AbiEvent
+	data: Hex.Hex
+	topics: readonly Hex.Hex[]
+}) {
+	const { abiItem, data, topics } = args
+	const indexedValues = topics.slice(1)
+
+	for (let i = 0; i < indexedValues.length; i++) {
+		const offset = indexedValues.length - i
+		for (
+			let j = 0;
+			j < abiItem.inputs.length - indexedValues.length + 1 - i;
+			j++
+		) {
+			const inputs = abiItem.inputs.map((input, index) => ({
+				...input,
+				indexed:
+					index < offset - 1 ||
+					index === i + j + offset - 1 ||
+					index >= abiItem.inputs.length - (indexedValues.length - offset),
+			}))
+			const abi = [{ ...abiItem, inputs }]
+			try {
+				return decodeEventLog({
+					abi,
+					topics: topics as [Hex.Hex, ...Hex.Hex[]],
+					data,
+				})
+			} catch {}
+		}
+	}
+}
+
+// ============================================================================
+// Whatsabi - ABI extraction from bytecode
+// ============================================================================
+
+const defaultSignatureLookup = new loaders.MultiSignatureLookup([
+	new loaders.OpenChainSignatureLookup(),
+	new loaders.FourByteSignatureLookup(),
+	new loaders.SamczunSignatureLookup(),
+])
+
+/**
+ * Lookup a function or event signature by selector/topic hash.
+ * Returns the first matching signature string or null.
+ */
+export async function lookupSignature(
+	selector: Hex.Hex,
+): Promise<string | null> {
+	const signatures =
+		selector.length === 10
+			? await defaultSignatureLookup.loadFunctions(selector)
+			: await defaultSignatureLookup.loadEvents(selector)
+	return signatures[0] ?? null
+}
+
+export type AutoloadAbiOptions = {
+	followProxies?: boolean
+	includeSourceVerified?: boolean
+}
+
+/**
+ * Autoload ABI for a contract address using whatsabi.
+ * Attempts to fetch verified source from Sourcify, falls back to bytecode extraction.
+ */
+export async function autoloadAbi(
+	address: Address.Address,
+	options: AutoloadAbiOptions = {},
+): Promise<Abi | null> {
+	const { followProxies = true, includeSourceVerified = true } = options
+	const config = getWagmiConfig()
+	const chainId = getChainId(config)
+	const client = getPublicClient(config)
+
+	try {
+		const result = await whatsabi.autoload(address, {
+			provider: client,
+			followProxies,
+			abiLoader: includeSourceVerified
+				? new loaders.MultiABILoader([
+						new loaders.SourcifyABILoader({ chainId }),
+					])
+				: false,
+			signatureLookup: defaultSignatureLookup,
+			onError: () => false,
+		})
+
+		if (!result.abi || result.abi.length === 0) return null
+
+		const hasNames = result.abi.some((item) => (item as { name?: string }).name)
+		if (!hasNames) return null
+
+		return result.abi.map((abiItem) => ({
+			...abiItem,
+			inputs: ('inputs' in abiItem && abiItem.inputs) || [],
+			outputs: ('outputs' in abiItem && abiItem.outputs) || [],
+		})) as Abi
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Extract ABI from bytecode only (no source verification).
+ * Use this when you specifically want bytecode-extracted ABI.
  */
 export async function extractContractAbi(
 	address: Address.Address,
 ): Promise<Abi | undefined> {
-	try {
-		const client = getPublicClient(config)
-
-		const result = await whatsabi.autoload(address, {
-			provider: client,
-			followProxies: true,
-			// Disable ABI loader (requires Etherscan API key)
-			abiLoader: false,
-			signatureLookup: new whatsabi.loaders.MultiSignatureLookup([
-				new whatsabi.loaders.OpenChainSignatureLookup(),
-				new whatsabi.loaders.SamczunSignatureLookup(),
-			]),
-		})
-
-		if (!result.abi || result.abi.length === 0) return undefined
-
-		return result.abi as Abi
-	} catch (error) {
-		console.error('Failed to extract ABI:', error)
-		return undefined
-	}
+	const result = await autoloadAbi(address, { includeSourceVerified: false })
+	return result ?? undefined
 }

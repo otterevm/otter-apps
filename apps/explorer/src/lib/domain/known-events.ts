@@ -1,19 +1,34 @@
-import { Address, Hex } from 'ox'
-import {
-	type AbiEvent,
-	decodeFunctionData,
-	type Log,
-	parseEventLogs,
-	type TransactionReceipt,
-	zeroAddress,
-} from 'viem'
+import * as Address from 'ox/Address'
+import * as Hex from 'ox/Hex'
+import type { AbiEvent, Log, TransactionReceipt } from 'viem'
+import { decodeFunctionData, parseEventLogs, zeroAddress } from 'viem'
 import { Abis, Addresses } from 'viem/tempo'
 import type * as Tip20 from './tip20'
 
 const abi = Object.values(Abis).flat()
-const ZERO_ADDRESS = zeroAddress
 const FEE_MANAGER = Addresses.feeManager
-const STABLECOIN_EXCHANGE = Addresses.stablecoinExchange
+const STABLECOIN_EXCHANGE = Addresses.stablecoinDex
+
+export type Authorization = {
+	address: Address.Address
+	chainId: number
+	nonce: number
+}
+
+export function parseAuthorizationEvents(
+	authorizationList: readonly Authorization[] | undefined,
+): KnownEvent[] {
+	if (!authorizationList || authorizationList.length === 0) return []
+
+	return authorizationList.map((auth) => ({
+		type: 'delegate account',
+		parts: [
+			{ type: 'action', value: 'Delegate Account' },
+			{ type: 'text', value: 'to' },
+			{ type: 'account', value: auth.address },
+		],
+	}))
+}
 
 type FeeTransferEvent = {
 	amount: bigint
@@ -43,7 +58,7 @@ function createDetectors(
 			if (eventName === 'Transfer' || eventName === 'TransferWithMemo') {
 				const isFeeTransfer =
 					Address.isEqual(args.to, FEE_MANAGER) &&
-					!Address.isEqual(args.from, ZERO_ADDRESS)
+					!Address.isEqual(args.from, zeroAddress)
 
 				if (isFeeTransfer) {
 					// When viewer mode is active, let feePayer detector handle fee transfers
@@ -178,64 +193,64 @@ function createDetectors(
 				}
 			}
 
-			if (eventName === 'RewardScheduled') {
-				const metadata = getTokenMetadata?.(address)
-				return {
-					type: 'reward scheduled',
-					parts: [
-						{ type: 'action', value: 'Reward Stream' },
-						{ type: 'text', value: 'created for' },
-						{
-							type: 'token',
-							value: { address, symbol: metadata?.symbol },
-						},
-					],
-					note: [
-						['ID', { type: 'text', value: String(args.id) }],
-						['Funder', { type: 'account', value: args.funder }],
-						[
-							'Amount',
-							{
-								type: 'number',
-								value:
-									metadata?.decimals === undefined
-										? args.amount
-										: [args.amount, metadata.decimals],
-							},
-						],
-						['Duration', { type: 'duration', value: args.durationSeconds }],
-					],
-				}
-			}
+			// if (eventName === 'RewardScheduled') {
+			// 	const metadata = getTokenMetadata?.(address)
+			// 	return {
+			// 		type: 'reward scheduled',
+			// 		parts: [
+			// 			{ type: 'action', value: 'Reward Stream' },
+			// 			{ type: 'text', value: 'created for' },
+			// 			{
+			// 				type: 'token',
+			// 				value: { address, symbol: metadata?.symbol },
+			// 			},
+			// 		],
+			// 		note: [
+			// 			['ID', { type: 'text', value: String(args.id) }],
+			// 			['Funder', { type: 'account', value: args.funder }],
+			// 			[
+			// 				'Amount',
+			// 				{
+			// 					type: 'number',
+			// 					value:
+			// 						metadata?.decimals === undefined
+			// 							? args.amount
+			// 							: [args.amount, metadata.decimals],
+			// 				},
+			// 			],
+			// 			['Duration', { type: 'duration', value: args.durationSeconds }],
+			// 		],
+			// 	}
+			// }
 
-			if (eventName === 'RewardCanceled') {
-				const metadata = getTokenMetadata?.(address)
-				return {
-					type: 'reward canceled',
-					parts: [
-						{ type: 'action', value: 'Cancel Reward Stream' },
-						{ type: 'text', value: 'for' },
-						{
-							type: 'token',
-							value: { address, symbol: metadata?.symbol },
-						},
-					],
-					note: [
-						['ID', { type: 'text', value: String(args.id) }],
-						['Funder', { type: 'account', value: args.funder }],
-						[
-							'Refund',
-							{
-								type: 'number',
-								value:
-									metadata?.decimals === undefined
-										? args.refund
-										: [args.refund, metadata.decimals],
-							},
-						],
-					],
-				}
-			}
+			// if (eventName === 'RewardCanceled') {
+			// 	const metadata = getTokenMetadata?.(address)
+			// 	return {
+			// 		type: 'reward canceled',
+			// 		parts: [
+			// 			{ type: 'action', value: 'Cancel Reward Stream' },
+			// 			{ type: 'text', value: 'for' },
+			// 			{
+			// 				type: 'token',
+			// 				value: { address, symbol: metadata?.symbol },
+			// 			},
+			// 		],
+			// 		note: [
+			// 			['ID', { type: 'text', value: String(args.id) }],
+			// 			['Funder', { type: 'account', value: args.funder }],
+			// 			[
+			// 				'Refund',
+			// 				{
+			// 					type: 'number',
+			// 					value:
+			// 						metadata?.decimals === undefined
+			// 							? args.refund
+			// 							: [args.refund, metadata.decimals],
+			// 				},
+			// 			],
+			// 		],
+			// 	}
+			// }
 
 			if (eventName === 'RewardRecipientSet')
 				return {
@@ -338,54 +353,37 @@ function createDetectors(
 		},
 
 		tip20Factory(event: ParsedEvent) {
-			const { eventName, args, address } = event
+			const { eventName, args } = event
 
 			if (eventName === 'TokenCreated')
 				return {
 					type: 'create token',
 					parts: [
 						{ type: 'action', value: 'Create Token' },
-						{ type: 'token', value: { address, symbol: args.symbol } },
+						{
+							type: 'token',
+							value: { address: args.token, symbol: args.symbol },
+						},
 					],
 				}
 
 			return null
 		},
 
-		stablecoinExchange(event: ParsedEvent) {
-			const { eventName, args, address } = event
+		stablecoinDex(event: ParsedEvent) {
+			const { eventName, args } = event
 
-			if (eventName === 'Mint')
-				return !Address.isEqual(address, FEE_MANAGER) &&
-					'amountUserToken' in args &&
-					'amountValidatorToken' in args &&
-					args.amountUserToken > 0n &&
-					args.amountValidatorToken > 0n
-					? {
-							type: 'mint',
-							parts: [
-								{ type: 'action', value: 'Add Liquidity' },
-								{
-									type: 'amount',
-									value: createAmount(args.amountUserToken, args.userToken),
-								},
-								{ type: 'text', value: 'and' },
-								{
-									type: 'amount',
-									value: createAmount(
-										args.amountValidatorToken,
-										args.validatorToken,
-									),
-								},
-							],
-						}
-					: null
-
-			if (eventName === 'OrderPlaced')
+			if (eventName === 'OrderPlaced') {
+				// OrderPlaced now includes flip orders (isFlipOrder field)
+				const isFlip = 'isFlipOrder' in args && args.isFlipOrder
+				const actionPrefix = isFlip ? 'Flip' : 'Limit'
 				return {
-					type: 'order placed',
+					type: isFlip ? 'flip order placed' : 'order placed',
 					parts: [
-						{ type: 'action', value: `Limit ${args.isBid ? 'Buy' : 'Sell'}` },
+						{
+							type: 'action',
+							value: `${actionPrefix} ${args.isBid ? 'Buy' : 'Sell'}`,
+						},
 						{
 							type: 'amount',
 							value: createAmount(args.amount, args.token),
@@ -394,20 +392,7 @@ function createDetectors(
 						{ type: 'tick', value: args.tick },
 					],
 				}
-
-			if (eventName === 'FlipOrderPlaced')
-				return {
-					type: 'flip order placed',
-					parts: [
-						{ type: 'action', value: `Flip ${args.isBid ? 'Buy' : 'Sell'}` },
-						{
-							type: 'amount',
-							value: createAmount(args.amount, args.token),
-						},
-						{ type: 'text', value: 'at tick' },
-						{ type: 'tick', value: args.tick },
-					],
-				}
+			}
 
 			if (eventName === 'OrderFilled')
 				return {
@@ -547,14 +532,45 @@ function createDetectors(
 					],
 				}
 
-			if (eventName === 'ActiveKeyCountChanged')
+			return null
+		},
+
+		accountKeychain(event: ParsedEvent) {
+			const { eventName, args } = event
+
+			if (eventName === 'KeyAuthorized')
 				return {
-					type: 'active key count changed',
+					type: 'key authorized',
 					parts: [
-						{ type: 'action', value: 'Key Count Changed' },
+						{ type: 'action', value: 'Authorize Key' },
+						{ type: 'account', value: args.publicKey },
+						{ type: 'text', value: 'for' },
 						{ type: 'account', value: args.account },
 					],
-					note: [['New Count', { type: 'text', value: String(args.newCount) }]],
+				}
+
+			if (eventName === 'KeyRevoked')
+				return {
+					type: 'key revoked',
+					parts: [
+						{ type: 'action', value: 'Revoke Key' },
+						{ type: 'account', value: args.publicKey },
+						{ type: 'text', value: 'for' },
+						{ type: 'account', value: args.account },
+					],
+				}
+
+			if (eventName === 'SpendingLimitUpdated')
+				return {
+					type: 'spending limit updated',
+					parts: [
+						{ type: 'action', value: 'Update Spending Limit' },
+						{ type: 'account', value: args.publicKey },
+					],
+					note: [
+						['Token', { type: 'token', value: { address: args.token } }],
+						['New Limit', { type: 'number', value: args.newLimit }],
+					],
 				}
 
 			return null
@@ -565,17 +581,12 @@ function createDetectors(
 
 			if (eventName === 'Mint')
 				return !Address.isEqual(address, FEE_MANAGER) &&
-					'amountUserToken' in args &&
-					'amountValidatorToken' in args
+					'amountValidatorToken' in args &&
+					'validatorToken' in args
 					? {
 							type: 'mint',
 							parts: [
 								{ type: 'action', value: 'Add Liquidity' },
-								{
-									type: 'amount',
-									value: createAmount(args.amountUserToken, args.userToken),
-								},
-								{ type: 'text', value: 'and' },
 								{
 									type: 'amount',
 									value: createAmount(
@@ -616,29 +627,12 @@ function createDetectors(
 						{ type: 'action', value: 'Rebalance Swap' },
 						{
 							type: 'amount',
-							value: createAmount(args.amountIn, args.userToken),
+							value: createAmount(args.amountIn, args.validatorToken),
 						},
 						{ type: 'text', value: 'for' },
 						{
 							type: 'amount',
-							value: createAmount(args.amountOut, args.validatorToken),
-						},
-					],
-				}
-
-			if (eventName === 'FeeSwap')
-				return {
-					type: 'fee swap',
-					parts: [
-						{ type: 'action', value: 'Fee Swap' },
-						{
-							type: 'amount',
-							value: createAmount(args.amountIn, args.userToken),
-						},
-						{ type: 'text', value: 'for' },
-						{
-							type: 'amount',
-							value: createAmount(args.amountOut, args.validatorToken),
+							value: createAmount(args.amountOut, args.userToken),
 						},
 					],
 				}
@@ -654,7 +648,7 @@ function createDetectors(
 				return null
 			if (!Address.isEqual(args.to, FEE_MANAGER)) return null
 			// Avoid mints
-			if (Address.isEqual(args.from, ZERO_ADDRESS)) return null
+			if (Address.isEqual(args.from, zeroAddress)) return null
 
 			// Only trigger when viewer is the fee payer
 			if (!viewer || !transactionSender) return null
@@ -755,6 +749,7 @@ export interface KnownEvent {
 		from?: Address.Address
 		to?: Address.Address
 	}
+	failed?: boolean
 }
 
 type TransactionLike = {
@@ -770,21 +765,10 @@ type TransactionLike = {
 		| null
 }
 
-type FeeManagerAddLiquidityCall =
-	| {
-			functionName: 'mint'
-			args: readonly [
-				Address.Address,
-				Address.Address,
-				bigint,
-				bigint,
-				Address.Address,
-			]
-	  }
-	| {
-			functionName: 'mintWithValidatorToken'
-			args: readonly [Address.Address, Address.Address, bigint, Address.Address]
-	  }
+type FeeManagerAddLiquidityCall = {
+	functionName: 'mint'
+	args: readonly [Address.Address, Address.Address, bigint, Address.Address]
+}
 
 export function parseKnownEvent(
 	log: Log,
@@ -810,10 +794,11 @@ export function parseKnownEvent(
 	const detected =
 		detectors.tip20(event) ||
 		detectors.tip20Factory(event) ||
-		detectors.stablecoinExchange(event) ||
+		detectors.stablecoinDex(event) ||
 		detectors.tip403Registry(event) ||
 		detectors.feeManager(event) ||
 		detectors.nonce(event) ||
+		detectors.accountKeychain(event) ||
 		detectors.feeAmm(event)
 
 	if (!detected || isFeeTransferEvent(detected)) return null
@@ -823,7 +808,8 @@ export function parseKnownEvent(
 // e.g. for TxEventDescription.ExpandGroup's limitFilter
 export function preferredEventsFilter(event: KnownEvent): boolean {
 	return (
-		event.type !== 'active key count changed' &&
+		event.type !== 'key authorized' &&
+		event.type !== 'key revoked' &&
 		event.type !== 'nonce incremented'
 	)
 }
@@ -839,12 +825,9 @@ function detectContractCall(
 		viewer?: Address.Address
 	},
 ): KnownEvent | null {
-	const { viewer } = options ?? {}
 	const contractAddress = receipt.to
 
-	// Only show contract call when viewing as the called contract
-	if (!contractAddress || !viewer || !Address.isEqual(contractAddress, viewer))
-		return null
+	if (!contractAddress) return null
 
 	const transaction = options?.transaction
 	const callInput = transaction?.input ?? transaction?.data
@@ -852,15 +835,18 @@ function detectContractCall(
 	// Need input data to show a contract call
 	if (!callInput || callInput === '0x') return null
 
+	const failed = receipt.status === 'reverted'
+
 	return {
 		type: 'contract call',
 		parts: [
-			{ type: 'action', value: 'Call To' },
+			{ type: 'action', value: failed ? 'Failed' : 'Call' },
 			{
 				type: 'contractCall',
-				value: { address: contractAddress, input: callInput },
+				value: { address: Address.checksum(contractAddress), input: callInput },
 			},
 		],
+		failed,
 	}
 }
 
@@ -915,11 +901,7 @@ export function parseKnownEvents(
 					 * to catch explicit user mints. If the `FeeManager` starts emitting a dedicated event,
 					 * we can revisit this and simplify the logic.
 					 */
-					if (
-						decoded.functionName === 'mint' ||
-						decoded.functionName === 'mintWithValidatorToken'
-					)
-						return decoded
+					if (decoded.functionName === 'mint') return decoded
 				} catch {
 					// fall through and continue searching other calls
 				}
@@ -987,7 +969,7 @@ export function parseKnownEvents(
 			if (!memoText) continue
 
 			// Check if this pairs with a Mint (transfer from zero address)
-			if (Address.isEqual(from, ZERO_ADDRESS)) {
+			if (Address.isEqual(from, zeroAddress)) {
 				const mintKey = `mint:${event.address}:${amount}:${to}`
 				if (preferenceMap.get(mintKey) === 'Mint') {
 					mintBurnMemos.set(mintKey, memoText)
@@ -995,7 +977,7 @@ export function parseKnownEvents(
 			}
 
 			// Check if this pairs with a Burn (transfer to zero address)
-			if (Address.isEqual(to, ZERO_ADDRESS)) {
+			if (Address.isEqual(to, zeroAddress)) {
 				const burnKey = `burn:${event.address}:${amount}:${from}`
 				if (preferenceMap.get(burnKey) === 'Burn') {
 					mintBurnMemos.set(burnKey, memoText)
@@ -1035,7 +1017,7 @@ export function parseKnownEvents(
 					to: Address.Address
 					amount: bigint
 				}
-				if (Address.isEqual(from, ZERO_ADDRESS)) {
+				if (Address.isEqual(from, zeroAddress)) {
 					const mintKey = `mint:${event.address}:${amount}:${to}`
 					if (preferenceMap.get(mintKey) === 'Mint') include = false
 				}
@@ -1051,7 +1033,7 @@ export function parseKnownEvents(
 					to: Address.Address
 					amount: bigint
 				}
-				if (Address.isEqual(to, ZERO_ADDRESS)) {
+				if (Address.isEqual(to, zeroAddress)) {
 					const burnKey = `burn:${event.address}:${amount}:${from}`
 					if (preferenceMap.get(burnKey) === 'Burn') include = false
 				}
@@ -1072,13 +1054,13 @@ export function parseKnownEvents(
 				}
 
 				// Check Mint dedup (transfer from zero address)
-				if (Address.isEqual(from, ZERO_ADDRESS)) {
+				if (Address.isEqual(from, zeroAddress)) {
 					const mintKey = `mint:${event.address}:${amount}:${to}`
 					if (preferenceMap.get(mintKey) === 'Mint') include = false
 				}
 
 				// Check Burn dedup (transfer to zero address)
-				if (Address.isEqual(to, ZERO_ADDRESS)) {
+				if (Address.isEqual(to, zeroAddress)) {
 					const burnKey = `burn:${event.address}:${amount}:${from}`
 					if (preferenceMap.get(burnKey) === 'Burn') include = false
 				}
@@ -1090,52 +1072,31 @@ export function parseKnownEvents(
 
 	const knownEvents: KnownEvent[] = []
 
-	if (
-		feeManagerCall &&
-		(feeManagerCall.functionName === 'mint' ||
-			feeManagerCall.functionName === 'mintWithValidatorToken')
-	) {
-		const {
-			userToken,
-			validatorToken,
-			amountUserToken,
-			amountValidatorToken,
-		}: {
-			userToken: Address.Address
-			validatorToken: Address.Address
-			amountUserToken: bigint
-			amountValidatorToken: bigint
-		} =
-			feeManagerCall.functionName === 'mint'
-				? {
-						userToken: feeManagerCall.args[0],
-						validatorToken: feeManagerCall.args[1],
-						amountUserToken: feeManagerCall.args[2],
-						amountValidatorToken: feeManagerCall.args[3],
-					}
-				: {
-						userToken: feeManagerCall.args[0],
-						validatorToken: feeManagerCall.args[1],
-						amountUserToken: 0n,
-						amountValidatorToken: feeManagerCall.args[2],
-					}
+	// Detect contract creation (transaction.to is null for deployments)
+	const transaction = options?.transaction
+	if (transaction && transaction.to === null && receipt.contractAddress) {
+		knownEvents.push({
+			type: 'contract creation',
+			parts: [
+				{ type: 'action', value: 'Deploy Contract' },
+				{ type: 'account', value: receipt.contractAddress },
+			],
+		})
+	}
 
-		const parts: KnownEventPart[] = [
-			{ type: 'action', value: 'Add Liquidity' },
-			{
-				type: 'amount',
-				value: createAmount(amountUserToken, userToken),
-			},
-			{ type: 'text', value: 'and' },
-			{
-				type: 'amount',
-				value: createAmount(amountValidatorToken, validatorToken),
-			},
-		]
+	if (feeManagerCall && feeManagerCall.functionName === 'mint') {
+		const validatorToken = feeManagerCall.args[1]
+		const amountValidatorToken = feeManagerCall.args[2]
 
 		knownEvents.push({
 			type: 'mint',
-			parts,
+			parts: [
+				{ type: 'action', value: 'Add Liquidity' },
+				{
+					type: 'amount',
+					value: createAmount(amountValidatorToken, validatorToken),
+				},
+			],
 		})
 	}
 
@@ -1210,10 +1171,11 @@ export function parseKnownEvents(
 			detectors.feePayer(event) ||
 			detectors.tip20(event) ||
 			detectors.tip20Factory(event) ||
-			detectors.stablecoinExchange(event) ||
+			detectors.stablecoinDex(event) ||
 			detectors.tip403Registry(event) ||
 			detectors.feeManager(event) ||
 			detectors.nonce(event) ||
+			detectors.accountKeychain(event) ||
 			detectors.feeAmm(event)
 
 		if (!detected) continue
@@ -1242,6 +1204,25 @@ export function parseKnownEvents(
 		}
 	}
 
+	// If no known events, check for self-transfer (from === to with empty calldata)
+	if (
+		knownEvents.length === 0 &&
+		transaction?.to &&
+		Address.isEqual(receipt.from, transaction.to)
+	) {
+		const callInput = transaction.input ?? transaction.data
+		const isEmptyCall = !callInput || callInput === '0x'
+		if (isEmptyCall) {
+			knownEvents.push({
+				type: 'self transfer',
+				parts: [
+					{ type: 'action', value: 'Self Transfer' },
+					{ type: 'account', value: receipt.from },
+				],
+			})
+		}
+	}
+
 	// If no known events were parsed but there was a fee transfer,
 	// show it as a fee payment event
 	if (knownEvents.length === 0 && feeTransferEvents.length > 0) {
@@ -1262,4 +1243,153 @@ export function parseKnownEvents(
 	}
 
 	return knownEvents
+}
+
+// ============================================================================
+// Call Decoding (for contracts that emit no events, e.g., validator precompile)
+// ============================================================================
+
+// Validator config address (use Addresses.validator when viem exports it)
+const VALIDATOR_CONFIG = '0xcccccccc00000000000000000000000000000000'
+
+type CallDecoder = (
+	functionName: string,
+	args: readonly unknown[],
+) => KnownEvent | null
+
+function decodeValidatorConfigCall(
+	functionName: string,
+	args: readonly unknown[],
+): KnownEvent | null {
+	switch (functionName) {
+		case 'addValidator': {
+			const [newValidatorAddress, _publicKey, active] = args as [
+				Address.Address,
+				Hex.Hex,
+				boolean,
+			]
+			return {
+				type: 'add validator',
+				parts: [
+					{ type: 'action', value: 'Add Validator' },
+					{ type: 'account', value: newValidatorAddress },
+					{
+						type: 'text',
+						value: active ? '(active)' : '(inactive)',
+					},
+				],
+			}
+		}
+		case 'updateValidator': {
+			const [newValidatorAddress] = args as [Address.Address]
+			return {
+				type: 'update validator',
+				parts: [
+					{ type: 'action', value: 'Update Validator' },
+					{ type: 'account', value: newValidatorAddress },
+				],
+			}
+		}
+		case 'changeValidatorStatus': {
+			const [validator, active] = args as [Address.Address, boolean]
+			return {
+				type: 'change validator status',
+				parts: [
+					{
+						type: 'action',
+						value: active ? 'Activate Validator' : 'Deactivate Validator',
+					},
+					{ type: 'account', value: validator },
+				],
+			}
+		}
+		case 'changeOwner': {
+			const [newOwner] = args as [Address.Address]
+			return {
+				type: 'change owner',
+				parts: [
+					{ type: 'action', value: 'Change Owner' },
+					{ type: 'text', value: 'to' },
+					{ type: 'account', value: newOwner },
+				],
+			}
+		}
+		case 'setNextFullDkgCeremony': {
+			const [epoch] = args as [bigint]
+			return {
+				type: 'set dkg ceremony',
+				parts: [
+					{ type: 'action', value: 'Schedule DKG Ceremony' },
+					{ type: 'text', value: `at epoch ${epoch.toString()}` },
+				],
+			}
+		}
+		case 'getValidators':
+			return {
+				type: 'get validators',
+				parts: [{ type: 'action', value: 'Get Validators' }],
+			}
+		case 'owner':
+			return {
+				type: 'get owner',
+				parts: [{ type: 'action', value: 'Get Owner' }],
+			}
+		case 'validatorCount':
+			return {
+				type: 'get validator count',
+				parts: [{ type: 'action', value: 'Get Validator Count' }],
+			}
+		case 'getNextFullDkgCeremony':
+			return {
+				type: 'get dkg ceremony',
+				parts: [{ type: 'action', value: 'Get Next DKG Ceremony' }],
+			}
+		case 'validators': {
+			const [validator] = args as [Address.Address]
+			return {
+				type: 'get validator',
+				parts: [
+					{ type: 'action', value: 'Get Validator' },
+					{ type: 'account', value: validator },
+				],
+			}
+		}
+		default:
+			return null
+	}
+}
+
+const callDecoders: Record<
+	string,
+	{ abi: readonly unknown[]; decoder: CallDecoder }
+> = {
+	[VALIDATOR_CONFIG.toLowerCase()]: {
+		abi: Abis.validator,
+		decoder: decodeValidatorConfigCall,
+	},
+}
+
+/**
+ * Decode a contract call to a human-readable KnownEvent.
+ * Returns null if the call cannot be decoded or the target is not a known contract.
+ * Use for contracts that emit no events (e.g., validator precompile).
+ */
+export function decodeKnownCall(
+	to: Address.Address,
+	input: Hex.Hex,
+): KnownEvent | null {
+	if (!input || input === '0x') return null
+
+	const entry = callDecoders[to.toLowerCase()]
+	if (!entry) return null
+
+	try {
+		const decoded = decodeFunctionData({
+			abi: entry.abi as readonly unknown[],
+			data: input,
+		})
+		return entry.decoder(decoded.functionName, decoded.args ?? [])
+	} catch {
+		return null
+	}
 }

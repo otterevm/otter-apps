@@ -1,10 +1,9 @@
+import { getApiUrl } from '#lib/env.ts'
 import { queryOptions } from '@tanstack/react-query'
 import type { Address } from 'ox'
 import { isAddress } from 'viem'
-import { getChainId } from 'wagmi/actions'
+import { useChainId } from 'wagmi'
 import * as z from 'zod/mini'
-
-import { config } from '#wagmi.config.ts'
 
 const CONTRACT_VERIFICATION_API_BASE_URL =
 	'https://contracts.tempo.xyz/v2/contract'
@@ -33,11 +32,11 @@ const SoliditySettingsSchema = z.object({
 })
 
 export const ContractVerificationLookupSchema = z.object({
-	matchId: z.number(),
+	matchId: z.coerce.number(),
 	match: z.string(),
 	creationMatch: z.string(),
 	runtimeMatch: z.string(),
-	chainId: z.number(),
+	chainId: z.coerce.number(),
 	address: z.string(),
 	verifiedAt: z.string(),
 	stdJsonInput: z.object({
@@ -54,7 +53,7 @@ export const ContractVerificationLookupSchema = z.object({
 	abi: z.array(z.any()),
 	compilation: z.object({
 		compiler: z.string(),
-		version: z.string(),
+		compilerVersion: z.string(),
 		language: z.string(),
 		name: z.string(),
 		fullyQualifiedName: z.string(),
@@ -110,12 +109,19 @@ export async function fetchContractSource(params: {
 	const { address, chainId, highlight = true, signal } = params
 
 	try {
-		const url = `${__BASE_URL__}/api/code?address=${address.toLowerCase()}&chainId=${chainId}&highlight=${highlight}`
+		const url = getApiUrl(
+			'/api/code',
+			new URLSearchParams({
+				address: address.toLowerCase(),
+				chainId: chainId.toString(),
+				highlight: highlight ? 'true' : 'false',
+			}),
+		)
 
 		const response = await fetch(url, { signal })
 
 		if (!response.ok) {
-			console.error(' Failed to fetch contract sources:', await response.text())
+			console.error('Failed to fetch contract sources:', await response.text())
 			throw new Error('Failed to fetch contract sources')
 		}
 
@@ -157,6 +163,11 @@ export function useContractSourceQueryOptions(params: {
 	address: Address.Address
 	chainId?: number
 }) {
-	const { address, chainId = getChainId(config) } = params
-	return contractSourceQueryOptions({ address, chainId })
+	const { address, chainId } = params
+	const defaultChainId = useChainId()
+
+	return contractSourceQueryOptions({
+		address,
+		chainId: chainId ?? defaultChainId,
+	})
 }

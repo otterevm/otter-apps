@@ -4,6 +4,10 @@ interface EnvironmentVariables {
 	readonly WHITELISTED_ORIGINS: string
 	readonly VITE_LOG_LEVEL: 'info' | 'warn' | 'silent'
 
+	readonly VITEST_ENV: 'devnet' | 'testnet' | 'mainnet'
+
+	readonly TEMPO_RPC_KEY: string
+
 	readonly CLOUDFLARE_ACCOUNT_ID: string
 	readonly CLOUDFLARE_DATABASE_ID: string
 	readonly CLOUDFLARE_D1_TOKEN: string

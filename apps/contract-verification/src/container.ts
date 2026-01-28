@@ -1,4 +1,5 @@
 import { Container, type StopParams } from '@cloudflare/containers'
+import { log } from '#utilities.ts'
 
 export class VerificationContainer extends Container<Cloudflare.Env> {
 	defaultPort = 8080
@@ -6,24 +7,56 @@ export class VerificationContainer extends Container<Cloudflare.Env> {
 	enableInternet = true
 
 	override async onStart(): Promise<void> {
-		console.log('onStart hook called')
-
-		const response = await this.containerFetch('http://localhost:8080/health') // TODO: update domain
+		const response = await this.containerFetch('http://localhost:8080/health')
 		if (!response.ok) throw new Error('Container health check failed')
 
 		const data = await response.text()
-		console.log('onStart hook called with data:', data)
+		log.info('container_started', { healthResponse: data })
 	}
 
 	override onStop(stopParams: StopParams): void {
-		if (stopParams.exitCode === 0) console.log('Container stopped gracefully')
-		else console.log('Container stopped with exit code:', stopParams.exitCode)
-
-		console.log('Container stop reason:', stopParams.reason)
+		if (stopParams.exitCode === 0) {
+			log.info('container_stopped', { exitCode: 0, reason: stopParams.reason })
+		} else {
+			log.warn('container_stopped_unexpectedly', {
+				exitCode: stopParams.exitCode,
+				reason: stopParams.reason,
+			})
+		}
 	}
 
 	override onError(error: unknown): unknown {
-		console.log('onError hook called with error:', error)
+		const errorMeta = extractErrorMeta(error)
+		log.error('container_error', error, errorMeta)
 		throw error
 	}
+
+	override async alarm(alarmProps: {
+		isRetry: boolean
+		retryCount: number
+	}): Promise<void> {
+		try {
+			await super.alarm(alarmProps)
+		} catch (error) {
+			const errorMeta = extractErrorMeta(error)
+			log.error('container_alarm_error', error, {
+				...errorMeta,
+				isRetry: alarmProps.isRetry,
+				retryCount: alarmProps.retryCount,
+			})
+			throw error
+		}
+	}
+}
+
+function extractErrorMeta(error: unknown): Record<string, unknown> {
+	if (error && typeof error === 'object') {
+		const e = error as Record<string, unknown>
+		return {
+			remote: e.remote,
+			retryable: e.retryable,
+			overloaded: e.overloaded,
+		}
+	}
+	return {}
 }

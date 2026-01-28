@@ -1,51 +1,76 @@
 import { env } from 'cloudflare:workers'
 import puppeteer from '@cloudflare/puppeteer'
 import { queryOptions, useQuery } from '@tanstack/react-query'
-import { createFileRoute, notFound, rootRouteId } from '@tanstack/react-router'
-import { Hex, Json, Value } from 'ox'
-import { getBlock, getTransaction, getTransactionReceipt } from 'wagmi/actions'
+import {
+	createFileRoute,
+	notFound,
+	rootRouteId,
+	useNavigate,
+} from '@tanstack/react-router'
+import * as Hex from 'ox/Hex'
+import * as Json from 'ox/Json'
+import * as Value from 'ox/Value'
+import { getPublicClient } from 'wagmi/actions'
 import * as z from 'zod/mini'
 import { NotFound } from '#comps/NotFound'
 import { Receipt } from '#comps/Receipt'
 import { apostrophe } from '#lib/chars'
-import { parseKnownEvents } from '#lib/domain/known-events'
-import { LineItems } from '#lib/domain/receipt'
+import { decodeKnownCall, parseKnownEvents } from '#lib/domain/known-events'
+import { getFeeBreakdown, LineItems } from '#lib/domain/receipt'
 import * as Tip20 from '#lib/domain/tip20'
-import { DateFormatter, HexFormatter, PriceFormatter } from '#lib/formatting'
+import { DateFormatter, PriceFormatter } from '#lib/formatting'
+import { useKeyboardShortcut } from '#lib/hooks'
 import {
 	buildTxDescription,
 	formatEventForOgServer,
 	OG_BASE_URL,
 } from '#lib/og'
-import { getConfig } from '#wagmi.config'
+import { withLoaderTiming } from '#lib/profiling'
+import { getWagmiConfig } from '#wagmi.config.ts'
 
 function receiptDetailQueryOptions(params: { hash: Hex.Hex; rpcUrl?: string }) {
 	return queryOptions({
 		queryKey: ['receipt-detail', params.hash, params.rpcUrl],
 		queryFn: () => fetchReceiptData(params),
+		staleTime: 1000 * 60 * 5, // 5 minutes - receipt data is immutable
 	})
 }
 
 async function fetchReceiptData(params: { hash: Hex.Hex; rpcUrl?: string }) {
-	const config = getConfig({ rpcUrl: params.rpcUrl })
-	const receipt = await getTransactionReceipt(config, {
+	const config = getWagmiConfig()
+	const client = getPublicClient(config)
+	const receipt = await client.getTransactionReceipt({
 		hash: params.hash,
 	})
+	// TODO: investigate & consider batch/multicall
 	const [block, transaction, getTokenMetadata] = await Promise.all([
-		getBlock(config, { blockHash: receipt.blockHash }),
-		getTransaction(config, { hash: receipt.transactionHash }),
+		client.getBlock({ blockHash: receipt.blockHash }),
+		client.getTransaction({ hash: receipt.transactionHash }),
 		Tip20.metadataFromLogs(receipt.logs),
 	])
 	const timestampFormatted = DateFormatter.format(block.timestamp)
 
 	const lineItems = LineItems.fromReceipt(receipt, { getTokenMetadata })
-	const knownEvents = parseKnownEvents(receipt, {
+	const parsedEvents = parseKnownEvents(receipt, {
 		transaction,
 		getTokenMetadata,
 	})
+	const feeBreakdown = getFeeBreakdown(receipt, { getTokenMetadata })
+
+	// Try to decode known contract calls (e.g., validator precompile)
+	// Prioritize decoded calls over fee-only events since they're more descriptive
+	const knownCall =
+		transaction.to && transaction.input && transaction.input !== '0x'
+			? decodeKnownCall(transaction.to, transaction.input)
+			: null
+
+	const knownEvents = knownCall
+		? [knownCall, ...parsedEvents.filter((e) => e.type !== 'fee')]
+		: parsedEvents
 
 	return {
 		block,
+		feeBreakdown,
 		knownEvents,
 		lineItems,
 		receipt,
@@ -91,26 +116,27 @@ export const Route = createFileRoute('/_layout/receipt/$hash')({
 			: {}),
 	}),
 	// @ts-expect-error - TODO: fix
-	loader: async ({ params, context }) => {
-		const hash = parseHashFromParams(params)
-		if (!hash)
-			throw notFound({
-				routeId: rootRouteId,
-				data: { type: 'hash', value: params.hash },
-			})
+	loader: ({ params, context }) =>
+		withLoaderTiming('/_layout/receipt/$hash', async () => {
+			const hash = parseHashFromParams(params)
+			if (!hash)
+				throw notFound({
+					routeId: rootRouteId,
+					data: { type: 'hash', value: params.hash },
+				})
 
-		try {
-			return await context.queryClient.ensureQueryData(
-				receiptDetailQueryOptions({ hash }),
-			)
-		} catch (error) {
-			console.error(error)
-			throw notFound({
-				routeId: rootRouteId,
-				data: { type: 'hash', value: hash },
-			})
-		}
-	},
+			try {
+				return await context.queryClient.ensureQueryData(
+					receiptDetailQueryOptions({ hash }),
+				)
+			} catch (error) {
+				console.error(error)
+				throw notFound({
+					routeId: rootRouteId,
+					data: { type: 'hash', value: hash },
+				})
+			}
+		}),
 	server: {
 		handlers: {
 			async GET({ params, request, next }) {
@@ -275,7 +301,7 @@ export const Route = createFileRoute('/_layout/receipt/$hash')({
 				{ property: 'og:description', content: description },
 				{ name: 'twitter:description', content: description },
 				{ property: 'og:image', content: ogImageUrl },
-				{ property: 'og:image:type', content: 'image/png' },
+				{ property: 'og:image:type', content: 'image/webp' },
 				{ property: 'og:image:width', content: '1200' },
 				{ property: 'og:image:height', content: '630' },
 				{ name: 'twitter:card', content: 'summary_large_image' },
@@ -287,6 +313,7 @@ export const Route = createFileRoute('/_layout/receipt/$hash')({
 
 function Component() {
 	const { hash } = Route.useParams()
+	const navigate = useNavigate()
 	const loaderData = Route.useLoaderData() as Awaited<
 		ReturnType<typeof fetchReceiptData>
 	>
@@ -296,7 +323,11 @@ function Component() {
 		initialData: loaderData,
 	})
 
-	const { block, knownEvents, lineItems, receipt } = data
+	useKeyboardShortcut({
+		t: () => navigate({ to: '/tx/$hash', params: { hash } }),
+	})
+
+	const { block, feeBreakdown, knownEvents, lineItems, receipt } = data
 
 	const feePrice = lineItems.feeTotals?.[0]?.price
 	const previousFee = feePrice
@@ -327,7 +358,7 @@ function Component() {
 				blockNumber={receipt.blockNumber}
 				events={knownEvents}
 				fee={fee}
-				feeBreakdown={lineItems.feeBreakdown}
+				feeBreakdown={feeBreakdown}
 				feeDisplay={feeDisplay}
 				hash={receipt.transactionHash}
 				sender={receipt.from}
@@ -341,7 +372,7 @@ function Component() {
 }
 
 namespace TextRenderer {
-	const width = 50
+	const width = 76
 	const indent = '  '
 
 	export function render(data: Awaited<ReturnType<typeof fetchReceiptData>>) {
@@ -354,10 +385,10 @@ namespace TextRenderer {
 		lines.push('')
 
 		// Transaction details
-		lines.push(`Tx Hash: ${HexFormatter.truncate(receipt.transactionHash, 8)}`)
+		lines.push(`Tx Hash: ${receipt.transactionHash}`)
 		lines.push(`Date: ${timestampFormatted}`)
 		lines.push(`Block: ${receipt.blockNumber.toString()}`)
-		lines.push(`Sender: ${HexFormatter.truncate(receipt.from, 6)}`)
+		lines.push(`Sender: ${receipt.from}`)
 		lines.push('')
 		lines.push('-'.repeat(width))
 		lines.push('')
@@ -390,10 +421,7 @@ namespace TextRenderer {
 					format: 'short',
 				})
 				lines.push(leftRight(label.toUpperCase(), amount))
-				if (item.payer)
-					lines.push(
-						`${indent}Paid by: ${HexFormatter.truncate(item.payer, 6)}`,
-					)
+				if (item.payer) lines.push(`${indent}Paid by: ${item.payer}`)
 			}
 
 			lines.push('')

@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useLocation } from '@tanstack/react-router'
+
 import type { Address } from 'ox'
 import { getSignature } from 'ox/AbiItem'
 import * as React from 'react'
 import type { Abi, AbiFunction } from 'viem'
 import { useConnection, useWriteContract } from 'wagmi'
-import { cx } from '#cva.config'
+import { cx } from '#lib/css'
 import {
 	getFunctionSelector,
 	getInputType,
@@ -15,7 +15,7 @@ import {
 	parseInputValue,
 	type WriteFunction,
 } from '#lib/domain/contracts'
-import { useCopy, useCopyPermalink } from '#lib/hooks'
+import { useCopy, useCopyPermalink, usePermalinkHighlight } from '#lib/hooks'
 import CheckIcon from '~icons/lucide/check'
 import ChevronDownIcon from '~icons/lucide/chevron-down'
 import CopyIcon from '~icons/lucide/copy'
@@ -26,24 +26,6 @@ export function ContractWriter(props: ContractWriter.Props) {
 	const { address, abi } = props
 
 	const key = React.useId()
-	const location = useLocation()
-
-	React.useEffect(() => {
-		const hash = location.hash
-		if (hash && typeof window !== 'undefined') {
-			const timer = setTimeout(() => {
-				const element = document.getElementById(hash.slice(1))
-				if (element) {
-					element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-					element.classList.add('ring-1', 'ring-accent', 'ring-offset-1')
-					setTimeout(() => {
-						element.classList.remove('ring-1', 'ring-accent', 'ring-offset-1')
-					}, 2_000)
-				}
-			}, 100)
-			return () => clearTimeout(timer)
-		}
-	}, [location.hash])
 
 	const writeFunctions = getWriteFunctions(abi)
 
@@ -93,12 +75,18 @@ function WriteContractFunction(props: {
 	fn: WriteFunction
 }) {
 	const { fn } = props
-	const [isExpanded, setIsExpanded] = React.useState(false)
 	const [inputs, setInputs] = React.useState<Record<string, string>>({})
 	const { copy, notifying: copyNotifying } = useCopy({ timeout: 2_000 })
 
 	const selector = getFunctionSelector(fn)
 	const fnId = `write-${fn.name || selector}`
+
+	const [isExpanded, setIsExpanded] = React.useState(false)
+	const handleTargetChange = React.useCallback(
+		(isTarget: boolean) => isTarget && setIsExpanded(true),
+		[],
+	)
+	usePermalinkHighlight({ elementId: fnId, onTargetChange: handleTargetChange })
 
 	const handleInputChange = (name: string, value: string) => {
 		setInputs((prev) => ({ ...prev, [name]: value }))
@@ -195,7 +183,12 @@ function WriteContractFunction(props: {
 							void handleCopyPermalink()
 						}}
 						title={linkNotifying ? 'Copied!' : 'Copy permalink'}
-						className="cursor-pointer press-down text-tertiary hover:text-primary h-full py-[10px] px-[4px] focus-visible:-outline-offset-2!"
+						className={cx(
+							'cursor-pointer press-down text-tertiary hover:text-primary h-full py-[10px] pl-[4px] focus-visible:-outline-offset-2!',
+							connection.status !== 'connected' && !hasInputs
+								? 'pr-[12px]'
+								: 'pr-[4px]',
+						)}
 					>
 						{linkNotifying ? (
 							<CheckIcon className="w-[12px] h-[12px]" />
@@ -272,6 +265,24 @@ function WriteContractFunction(props: {
 					{parsedArgs.error && (
 						<div className="p-2.5 rounded-md bg-red-500/10 border border-red-500/20">
 							<p className="text-[12px] text-red-400">{parsedArgs.error}</p>
+						</div>
+					)}
+
+					{writeContract.error && (
+						<div className="p-2.5 rounded-md bg-red-500/10 border border-red-500/20">
+							<p className="text-[12px] text-red-400">
+								{'shortMessage' in writeContract.error
+									? writeContract.error.shortMessage
+									: (writeContract.error.message ?? 'Transaction failed')}
+							</p>
+						</div>
+					)}
+
+					{writeContract.isSuccess && writeContract.data && (
+						<div className="p-2.5 rounded-md bg-green-500/10 border border-green-500/20">
+							<p className="text-[12px] text-green-400 font-mono break-all">
+								tx: {writeContract.data}
+							</p>
 						</div>
 					)}
 				</div>

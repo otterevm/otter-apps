@@ -8,6 +8,7 @@ import { prettyJSON } from 'hono/pretty-json'
 import { requestId } from 'hono/request-id'
 import { timeout } from 'hono/timeout'
 import { rateLimiter } from 'hono-rate-limiter'
+
 import { sourcifyChains } from '#chains.ts'
 import { VerificationContainer } from '#container.ts'
 import OpenApiSpec from '#openapi.json' with { type: 'json' }
@@ -16,7 +17,7 @@ import { docsRoute } from '#route.docs.tsx'
 import { lookupAllChainContractsRoute, lookupRoute } from '#route.lookup.ts'
 import { verifyRoute } from '#route.verify.ts'
 import { legacyVerifyRoute } from '#route.verify-legacy.ts'
-import { originMatches } from '#utilities.ts'
+import { handleError, log, originMatches, sourcifyError } from '#utilities.ts'
 
 export { VerificationContainer }
 
@@ -30,59 +31,88 @@ type AppEnv = { Bindings: Cloudflare.Env }
 const factory = createFactory<AppEnv>()
 const app = factory.createApp()
 
+app.onError(handleError)
+
 // @note: order matters
-app
-	.use('*', requestId({ headerName: 'X-Tempo-Request-Id' }))
-	.use(
-		cors({
-			allowMethods: ['GET', 'POST', 'OPTIONS', 'HEAD'],
-			origin: (origin, _) => {
-				return WHITELISTED_ORIGINS.some((p) =>
-					originMatches({ origin, pattern: p }),
-				)
-					? origin
-					: null
-			},
-		}),
-	)
-	.use(
-		rateLimiter<AppEnv>({
-			binding: (context) => context.env.RATE_LIMITER,
-			keyGenerator: (context) =>
-				(context.req.header('X-Real-IP') ??
-					context.req.header('CF-Connecting-IP') ??
-					context.req.header('X-Forwarded-For')) ||
-				'',
-			skip: (context) =>
-				WHITELISTED_ORIGINS.some((p) =>
-					originMatches({
-						origin: new URL(context.req.url).hostname,
-						pattern: p,
-					}),
-				),
-			message: { error: 'Rate limit exceeded', retryAfter: '60s' },
-		}),
-	)
-	.use(bodyLimit({ maxSize: 2 * 10_24 })) // 1mb
-	.use('*', timeout(12_000)) // 12 seconds
-	.use(prettyJSON())
-	.use(async (context, next) => {
-		if (context.env.NODE_ENV !== 'development') return await next()
-		const baseLogMessage = `${context.get('requestId')}-[${context.req.method}] ${context.req.path}`
-		if (context.req.method === 'GET') {
-			console.info(`${baseLogMessage}\n`)
-			return await next()
-		}
-		const body = await context.req.text()
-		console.info(`${baseLogMessage} \n${body}\n`)
-		return await next()
+app.use('*', requestId({ headerName: 'X-Tempo-Request-Id' }))
+app.use(
+	cors({
+		allowMethods: ['GET', 'POST', 'OPTIONS', 'HEAD'],
+		origin: (origin, _) => {
+			return WHITELISTED_ORIGINS.some((p) =>
+				originMatches({ origin, pattern: p }),
+			)
+				? origin
+				: null
+		},
+	}),
+)
+app.use(
+	rateLimiter<AppEnv>({
+		binding: (context) => context.env.RATE_LIMITER,
+		keyGenerator: (context) =>
+			(context.req.header('X-Real-IP') ??
+				context.req.header('CF-Connecting-IP') ??
+				context.req.header('X-Forwarded-For')) ||
+			'',
+		skip: (context) =>
+			WHITELISTED_ORIGINS.some((p) =>
+				originMatches({
+					origin: new URL(context.req.url).hostname,
+					pattern: p,
+				}),
+			),
+		message: { error: 'Rate limit exceeded', retryAfter: '60s' },
+	}),
+)
+
+const BODY_LIMIT = 4 * 1024 * 1024 // 4mb
+
+app.use(
+	bodyLimit({
+		maxSize: BODY_LIMIT,
+		onError: (context) => {
+			log
+				.fromContext(context)
+				.warn('body_limit_exceeded', { maxSizeBytes: BODY_LIMIT })
+			return sourcifyError(
+				context,
+				413,
+				'body_too_large',
+				'Body limit exceeded',
+			)
+		},
+	}),
+)
+app.use('*', timeout(30_000)) // 30 seconds default
+app.use('/verify/*', timeout(300_000)) // 5 minutes for legacy verify routes
+app.use('/v2/verify/*', timeout(300_000)) // 5 minutes for v2 verify routes
+app.use(prettyJSON())
+app.use(async (context, next) => {
+	const start = Date.now()
+	await next()
+	const durationMs = Date.now() - start
+	const status = context.res.status
+	const level = status >= 400 ? 'warn' : 'info'
+	log.fromContext(context)[level]('request_completed', {
+		status,
+		durationMs,
+		ip:
+			context.req.header('CF-Connecting-IP') ??
+			context.req.header('X-Forwarded-For'),
 	})
+})
 
 app.route('/docs', docsRoute)
 app.route('/verify', legacyVerifyRoute)
 app.route('/v2/verify', verifyRoute)
 app.route('/v2/contract', lookupRoute)
 app.route('/v2/contracts', lookupAllChainContractsRoute)
+
+// permanent redirect to explore.tempo.xyz favicon otherwise it shows in logs
+app.get('/favicon.ico', (context) =>
+	context.redirect('https://explore.tempo.xyz/favicon.ico', 301),
+)
 
 app
 	.get('/health', (context) => context.text('ok'))

@@ -1,15 +1,49 @@
-import { tempoDevnet, tempoTestnet } from 'viem/chains'
+import { tempoDevnet, tempoAndantino, tempoModerato } from 'viem/chains'
 
-export const DEVNET_CHAIN_ID = tempoDevnet.id
-export const TESTNET_CHAIN_ID = tempoTestnet.id
+const tempoRpcKey = process.env.TEMPO_RPC_KEY ?? ''
+const requiresRpcKey = process.env.VITEST_ENV === 'mainnet'
+if (requiresRpcKey && tempoRpcKey.length === 0) {
+	throw new Error('TEMPO_RPC_KEY is not set')
+}
+
+const tempoPresto = {
+	...tempoModerato,
+	id: 4217,
+	name: 'Tempo Mainnet',
+	blockExplorers: {
+		default: {
+			name: 'Tempo Explorer',
+			url: 'https://explore.mainnet.tempo.xyz',
+		},
+	},
+	rpcUrls: {
+		default: {
+			http: [`https://rpc.presto.tempo.xyz/${tempoRpcKey}`],
+			webSocket: [`wss://rpc.presto.tempo.xyz/${tempoRpcKey}`],
+		},
+	},
+} as const
 
 export const chains = {
 	[tempoDevnet.id]: tempoDevnet,
-	[tempoTestnet.id]: tempoTestnet,
+	[tempoModerato.id]: tempoModerato,
+	[tempoAndantino.id]: tempoAndantino,
+	[tempoPresto.id]: tempoPresto,
 }
 
+export const CHAIN_IDS = [
+	tempoDevnet.id,
+	tempoModerato.id,
+	tempoAndantino.id,
+	tempoPresto.id,
+] as const
 // matches https://sourcify.dev/server/chains format
-export const sourcifyChains = [tempoDevnet, tempoTestnet].map((chain) => {
+export const sourcifyChains = [
+	tempoDevnet,
+	tempoModerato,
+	tempoAndantino,
+	tempoPresto,
+].map((chain) => {
 	const returnValue = {
 		name: chain.name,
 		title: chain.name,

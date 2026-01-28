@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { type Address as AddressType, Hex, Value } from 'ox'
+import * as OxAddress from 'ox/Address'
+import type { Address as AddressType } from 'ox'
+import * as Hex from 'ox/Hex'
+import * as Value from 'ox/Value'
 import * as React from 'react'
 import { decodeFunctionData, isAddressEqual } from 'viem'
 import { Address } from '#comps/Address'
 import { Amount } from '#comps/Amount'
 import { Midcut } from '#comps/Midcut'
 import { TokenIcon } from '#comps/TokenIcon'
-import { cx } from '#cva.config.ts'
+import { cx } from '#lib/css'
 import { extractContractAbi, getContractAbi } from '#lib/domain/contracts.ts'
 import type { KnownEvent, KnownEventPart } from '#lib/domain/known-events.ts'
 import {
@@ -16,19 +19,23 @@ import {
 	PriceFormatter,
 	RoleFormatter,
 } from '#lib/formatting.ts'
+import { useLookupSignature } from '#lib/queries'
 
 /**
  * Renders a contract call with decoded function name.
  * Fetches ABI from registry or extracts from bytecode using whatsabi.
+ * Falls back to 4byte directory lookup.
  */
 function ContractCallPart(props: {
 	address: AddressType.Address
 	input: Hex.Hex
+	seenAs?: AddressType.Address
 }) {
-	const { address, input } = props
+	const { address, input, seenAs } = props
 	const selector = Hex.slice(input, 0, 4)
+	const isViewingAsContract = seenAs && isAddressEqual(seenAs, address)
 
-	const { data: functionName, isLoading } = useQuery({
+	const { data: functionName, isLoading: isLoadingAbi } = useQuery({
 		queryKey: ['contract-call-function', address, selector],
 		queryFn: async () => {
 			// Try known ABI first
@@ -51,19 +58,42 @@ function ContractCallPart(props: {
 		staleTime: Number.POSITIVE_INFINITY,
 	})
 
-	// Show selector while loading or if we couldn't decode
-	const displayText = isLoading ? selector : (functionName ?? selector)
+	// Fall back to 4byte directory lookup
+	const { data: signature, isFetched: isSignatureFetched } = useLookupSignature(
+		{
+			selector,
+			enabled: !functionName && !isLoadingAbi,
+		},
+	)
+
+	// Extract function name from signature (e.g., "transfer(address,uint256)" -> "transfer")
+	const signatureFnName = signature?.split('(')[0]
+
+	const isLoading = isLoadingAbi || (!functionName && !isSignatureFetched)
+	const fnName = isLoading
+		? selector
+		: (functionName ?? signatureFnName ?? selector)
+
+	if (isViewingAsContract) {
+		return (
+			<span className="text-accent items-end whitespace-nowrap">{fnName}</span>
+		)
+	}
 
 	return (
-		<Link
-			to="/address/$address"
-			params={{ address }}
-			search={{ tab: 'contract' }}
-			title={`${address} - ${functionName ?? selector}`}
-			className="press-down whitespace-nowrap"
-		>
-			<span className="text-accent items-end">{displayText}</span>
-		</Link>
+		<>
+			<span className="text-accent items-end whitespace-nowrap">{fnName}</span>
+			<span className="text-secondary">on</span>
+			<Link
+				to="/address/$address"
+				params={{ address }}
+				search={{ tab: 'contract' }}
+				title={address}
+				className="press-down whitespace-nowrap"
+			>
+				<Address address={address} />
+			</Link>
+		</>
 	)
 }
 
@@ -99,7 +129,9 @@ export namespace TxEventDescription {
 	export function Part(props: Part.Props) {
 		const { part, seenAs } = props
 		switch (part.type) {
-			case 'account':
+			case 'account': {
+				if (!OxAddress.validate(part.value))
+					return <span className="text-tertiary">{String(part.value)}</span>
 				return (
 					<Address
 						address={part.value}
@@ -107,6 +139,7 @@ export namespace TxEventDescription {
 						self={seenAs ? isAddressEqual(part.value, seenAs) : false}
 					/>
 				)
+			}
 			case 'action':
 				return (
 					<span className="inline-flex items-center h-[24px] px-[5px] bg-base-alt text-base-content capitalize">
@@ -129,9 +162,10 @@ export namespace TxEventDescription {
 						? Value.format(...part.value)
 						: Value.format(BigInt(part.value)),
 				)
+				const isSmall = formatted.startsWith('<')
 				return (
 					<span
-						className="items-end overflow-hidden text-ellipsis whitespace-nowrap"
+						className={`items-end overflow-hidden text-ellipsis whitespace-nowrap ${isSmall ? 'text-tertiary' : ''}`}
 						title={formatted}
 					>
 						{formatted}
@@ -146,7 +180,7 @@ export namespace TxEventDescription {
 					</span>
 				)
 			case 'text':
-				return <span>{part.value}</span>
+				return <span className="text-tertiary">{part.value}</span>
 			case 'tick':
 				return <span className="items-end">{part.value}</span>
 			case 'token':
@@ -169,7 +203,7 @@ export namespace TxEventDescription {
 					</Link>
 				)
 			case 'contractCall':
-				return <ContractCallPart {...part.value} />
+				return <ContractCallPart {...part.value} seenAs={seenAs} />
 			default:
 				return null
 		}
@@ -227,7 +261,7 @@ export namespace TxEventDescription {
 									<button
 										type="button"
 										onClick={() => setExpanded(true)}
-										className="text-base-content-secondary cursor-pointer press-down shrink-0"
+										className="text-tertiary cursor-pointer press-down shrink-0"
 									>
 										and {remainingCount} more
 									</button>

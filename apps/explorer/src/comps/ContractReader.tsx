@@ -1,15 +1,11 @@
-import { Link, useLocation } from '@tanstack/react-router'
-import { Address } from 'ox'
+import { Link } from '@tanstack/react-router'
+import * as Address from 'ox/Address'
 import { getSignature } from 'ox/AbiItem'
 import * as React from 'react'
-import {
-	type Abi,
-	type AbiFunction,
-	decodeFunctionResult,
-	encodeFunctionData,
-} from 'viem'
+import { decodeFunctionResult, encodeFunctionData } from 'viem'
+import type { Abi, AbiFunction } from 'viem'
 import { useCall, useReadContract } from 'wagmi'
-import { cx } from '#cva.config'
+import { cx } from '#lib/css'
 import { ellipsis } from '#lib/chars'
 import {
 	formatOutputValue,
@@ -21,7 +17,7 @@ import {
 	isArrayType,
 	parseInputValue,
 } from '#lib/domain/contracts'
-import { useCopy, useCopyPermalink } from '#lib/hooks'
+import { useCopy, useCopyPermalink, usePermalinkHighlight } from '#lib/hooks'
 import CheckIcon from '~icons/lucide/check'
 import ChevronDownIcon from '~icons/lucide/chevron-down'
 import ChevronsUpDownIcon from '~icons/lucide/chevrons-up-down'
@@ -40,28 +36,6 @@ export function ContractReader(props: {
 	const { address, abi } = props
 
 	const key = React.useId()
-	const location = useLocation()
-
-	// Scroll to function when hash is present
-	React.useEffect(() => {
-		const hash = location.hash
-		if (hash && typeof window !== 'undefined') {
-			// Small delay to ensure DOM is rendered
-			const timer = setTimeout(() => {
-				// Strip the leading '#' since getElementById expects just the ID
-				const element = document.getElementById(hash.slice(1))
-				if (element) {
-					element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-					// Add a brief highlight effect
-					element.classList.add('ring-1', 'ring-accent', 'ring-offset-1')
-					setTimeout(() => {
-						element.classList.remove('ring-1', 'ring-accent', 'ring-offset-1')
-					}, 2_000)
-				}
-			}, 100)
-			return () => clearTimeout(timer)
-		}
-	}, [location.hash])
 
 	const noInputFunctions = getNoInputFunctions(abi)
 	const inputFunctions = getInputFunctions(abi)
@@ -177,6 +151,10 @@ function StaticReadFunction(props: {
 	const [mounted, setMounted] = React.useState(false)
 	React.useEffect(() => setMounted(true), [])
 
+	const selector = getFunctionSelector(fn)
+	const fnId = fn.name || selector
+	usePermalinkHighlight({ elementId: fnId })
+
 	const hasOutputs = Array.isArray(fn.outputs) && fn.outputs.length > 0
 
 	const {
@@ -291,9 +269,6 @@ function StaticReadFunction(props: {
 		void copy(getMethodWithSelector(fn))
 	}
 
-	const selector = getFunctionSelector(fn)
-	const fnId = fn.name || selector
-
 	const { linkNotifying, handleCopyPermalink } = useCopyPermalink({
 		fragment: fnId,
 	})
@@ -395,12 +370,18 @@ function DynamicReadFunction(props: {
 	fn: ReadFunction
 }) {
 	const { address, abi, fn } = props
-	const [isExpanded, setIsExpanded] = React.useState(false)
 	const [inputs, setInputs] = React.useState<Record<string, string>>({})
 	const { copy, notifying: copyNotifying } = useCopy({ timeout: 2_000 })
 
 	const selector = getFunctionSelector(fn)
 	const fnId = fn.name || selector
+
+	const [isExpanded, setIsExpanded] = React.useState(false)
+	const handleTargetChange = React.useCallback(
+		(isTarget: boolean) => isTarget && setIsExpanded(true),
+		[],
+	)
+	usePermalinkHighlight({ elementId: fnId, onTargetChange: handleTargetChange })
 
 	const handleInputChange = (name: string, value: string) => {
 		setInputs((prev) => ({ ...prev, [name]: value }))

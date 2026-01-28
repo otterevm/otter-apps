@@ -1,5 +1,4 @@
 import { ClientOnly } from '@tanstack/react-router'
-import type { VariantProps } from 'cva'
 import * as React from 'react'
 import {
 	useChains,
@@ -10,7 +9,7 @@ import {
 	useSwitchChain,
 } from 'wagmi'
 import { Address } from '#comps/Address'
-import { cva } from '#cva.config.ts'
+import { cx } from '#lib/css'
 import { filterSupportedInjectedConnectors } from '#lib/wallets.ts'
 import LucideLogOut from '~icons/lucide/log-out'
 import LucideWalletCards from '~icons/lucide/wallet-cards'
@@ -40,6 +39,7 @@ function ConnectWalletInner({
 }) {
 	const { address, chain, connector } = useConnection()
 	const connect = useConnect()
+	const [pendingId, setPendingId] = React.useState<string | null>(null)
 	const connectors = useConnectors()
 	const injectedConnectors = React.useMemo(
 		() => filterSupportedInjectedConnectors(connectors),
@@ -57,13 +57,30 @@ function ConnectWalletInner({
 		)
 	if (!address || connector?.id === 'webAuthn')
 		return (
-			<div className="flex gap-2">
+			<div className="flex items-center gap-1.5">
+				<span className="text-[12px] text-tertiary whitespace-nowrap font-sans">
+					Connect
+				</span>
 				{injectedConnectors.map((connector) => (
-					<Button
-						variant="default"
-						className="flex gap-[8px] items-center"
+					<button
+						type="button"
 						key={connector.id}
-						onClick={() => connect.mutate({ connector })}
+						onClick={() => {
+							setPendingId(connector.id)
+							connect.mutate(
+								{ connector },
+								{
+									onSettled: () => setPendingId(null),
+								},
+							)
+						}}
+						className={cx(
+							'flex gap-[8px] items-center text-[12px] bg-base-alt rounded text-primary py-[6px] px-[10px] cursor-pointer press-down border border-card-border transition-colors',
+							'hover:bg-base-alt/80',
+							pendingId === connector.id &&
+								connect.isPending &&
+								'animate-pulse',
+						)}
 					>
 						{connector.icon ? (
 							<img
@@ -74,8 +91,8 @@ function ConnectWalletInner({
 						) : (
 							<LucideWalletCards className="size-[12px]" />
 						)}
-						Connect {connector.name}
-					</Button>
+						{connector.name}
+					</button>
 				))}
 			</div>
 		)
@@ -139,10 +156,13 @@ function SignOut() {
 }
 
 export function Button(
-	props: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'disabled'> &
-		VariantProps<typeof buttonClassName> & {
-			render?: React.ReactElement
-		},
+	props: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'disabled'> & {
+		className?: string
+		disabled?: boolean
+		static?: boolean
+		variant?: 'accent' | 'default' | 'destructive'
+		render?: React.ReactElement
+	},
 ) {
 	const {
 		className,
@@ -168,22 +188,20 @@ export function Button(
 	)
 }
 
-const buttonClassName = cva({
-	base: 'inline-flex gap-[6px] items-center whitespace-nowrap font-medium focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer press-down text-[12px] hover:underline',
-	defaultVariants: {
-		variant: 'default',
-	},
-	variants: {
-		disabled: {
-			true: 'pointer-events-none opacity-50',
-		},
-		static: {
-			true: 'pointer-events-none',
-		},
-		variant: {
-			accent: 'text-accent',
-			default: 'text-secondary',
-			destructive: 'text-negative',
-		},
-	},
-})
+function buttonClassName(opts: {
+	className?: string
+	disabled?: boolean
+	static?: boolean
+	variant?: 'accent' | 'default' | 'destructive'
+}) {
+	const { className, disabled, static: static_, variant = 'default' } = opts
+	return cx(
+		'inline-flex gap-[6px] items-center whitespace-nowrap font-medium focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer press-down text-[12px] hover:underline',
+		disabled && 'pointer-events-none opacity-50',
+		static_ && 'pointer-events-none',
+		variant === 'accent' && 'text-accent',
+		variant === 'default' && 'text-secondary',
+		variant === 'destructive' && 'text-negative',
+		className,
+	)
+}

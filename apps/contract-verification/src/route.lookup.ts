@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/d1'
 import { Hono } from 'hono'
 import { Address, Hex } from 'ox'
 
-import { DEVNET_CHAIN_ID, TESTNET_CHAIN_ID } from '#chains.ts'
+import { CHAIN_IDS } from '#chains.ts'
 
 import {
 	codeTable,
@@ -15,7 +15,7 @@ import {
 	sourcesTable,
 	verifiedContractsTable,
 } from '#database/schema.ts'
-import { sourcifyError } from '#utilities.ts'
+import { log, sourcifyError } from '#utilities.ts'
 
 /**
  * GET /v2/contract/{chainId}/{address}
@@ -41,7 +41,7 @@ lookupRoute.get('/all-chains/:address', async (context) => {
 			)
 
 		const db = drizzle(context.env.CONTRACTS_DB)
-		const addressBytes = Hex.toBytes(address as `0x${string}`)
+		const addressBytes = Hex.toBytes(address)
 
 		// Query all verified contracts at this address across all chains
 		const results = await db
@@ -77,11 +77,11 @@ lookupRoute.get('/all-chains/:address', async (context) => {
 					: runtimeMatchStatus || creationMatchStatus
 
 			return {
-				matchId: row.matchId,
+				matchId: String(row.matchId),
 				match: matchStatus,
 				creationMatch: creationMatchStatus,
 				runtimeMatch: runtimeMatchStatus,
-				chainId: row.chainId,
+				chainId: String(row.chainId),
 				address: Hex.fromBytes(new Uint8Array(row.address as ArrayBuffer)),
 				verifiedAt: row.verifiedAt,
 			}
@@ -89,7 +89,10 @@ lookupRoute.get('/all-chains/:address', async (context) => {
 
 		return context.json({ results: contracts })
 	} catch (error) {
-		console.error(error)
+		const { address } = context.req.param()
+		log
+			.fromContext(context)
+			.error('lookup_all_chains_failed', error, { address })
 		return sourcifyError(
 			context,
 			500,
@@ -105,7 +108,7 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 		const { chainId, address } = context.req.param()
 		const { fields, omit } = context.req.query()
 
-		if (![DEVNET_CHAIN_ID, TESTNET_CHAIN_ID].includes(Number(chainId)))
+		if (!CHAIN_IDS.includes(Number(chainId)))
 			return sourcifyError(
 				context,
 				400,
@@ -218,11 +221,11 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 
 		// Minimal response (default)
 		const minimalResponse = {
-			matchId: row.matchId,
+			matchId: String(row.matchId),
 			match: matchStatus,
 			creationMatch: creationMatchStatus,
 			runtimeMatch: runtimeMatchStatus,
-			chainId: row.chainId,
+			chainId: String(row.chainId),
 			address: formattedAddress,
 			verifiedAt: row.verifiedAt,
 		}
@@ -329,7 +332,7 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 			const hash32Bytes = new Uint8Array(sig.signatureHash32 as ArrayBuffer)
 			const signatureHash32 = Hex.fromBytes(hash32Bytes)
 			const signatureHash4 = Hex.fromBytes(hash32Bytes.slice(0, 4))
-			const type = sig.signatureType as 'function' | 'event' | 'error'
+			const type = sig.signatureType
 
 			signatures[type].push({
 				signature: sig.signature,
@@ -423,7 +426,7 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 			name: row.contractName,
 			fullyQualifiedName: row.fullyQualifiedName,
 			compiler: row.compiler,
-			version: row.version,
+			compilerVersion: row.version,
 			language: row.language,
 			compilerSettings: JSON.parse(row.compilerSettings),
 			runtimeMetadataMatch: row.runtimeMetadataMatch ? 'exact_match' : 'match',
@@ -458,14 +461,14 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 				: null,
 			compilation: {
 				compiler: row.compiler,
-				version: row.version,
+				compilerVersion: row.version,
 				language: row.language,
 				name: row.contractName,
 				fullyQualifiedName: row.fullyQualifiedName,
 				compilerSettings: JSON.parse(row.compilerSettings),
 			},
 			deployment: {
-				chainId: row.chainId,
+				chainId: String(row.chainId),
 				address: formattedAddress,
 				transactionHash: row.transactionHash
 					? Hex.fromBytes(new Uint8Array(row.transactionHash as ArrayBuffer))
@@ -504,7 +507,10 @@ lookupRoute.get('/:chainId/:address', async (context) => {
 
 		return context.json(minimalResponse)
 	} catch (error) {
-		console.error(error)
+		const { chainId, address } = context.req.param()
+		log
+			.fromContext(context)
+			.error('lookup_contract_failed', error, { chainId, address })
 		return sourcifyError(
 			context,
 			500,
@@ -520,7 +526,7 @@ lookupAllChainContractsRoute.get('/:chainId', async (context) => {
 		const { chainId } = context.req.param()
 		const { sort, limit, afterMatchId } = context.req.query()
 
-		if (![DEVNET_CHAIN_ID, TESTNET_CHAIN_ID].includes(Number(chainId)))
+		if (!CHAIN_IDS.includes(Number(chainId)))
 			return sourcifyError(
 				context,
 				400,
@@ -579,11 +585,11 @@ lookupAllChainContractsRoute.get('/:chainId', async (context) => {
 					: 'match'
 
 			return {
-				matchId: row.matchId,
+				matchId: String(row.matchId),
 				match: matchStatus,
 				creationMatch: creationMatchStatus,
 				runtimeMatch: runtimeMatchStatus,
-				chainId: row.chainId,
+				chainId: String(row.chainId),
 				address: Hex.fromBytes(new Uint8Array(row.address as ArrayBuffer)),
 				verifiedAt: row.verifiedAt,
 			}
@@ -591,7 +597,8 @@ lookupAllChainContractsRoute.get('/:chainId', async (context) => {
 
 		return context.json({ results: contracts })
 	} catch (error) {
-		console.error(error)
+		const { chainId } = context.req.param()
+		log.fromContext(context).error('list_contracts_failed', error, { chainId })
 		return sourcifyError(
 			context,
 			500,
