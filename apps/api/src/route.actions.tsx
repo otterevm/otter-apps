@@ -48,7 +48,7 @@ actionsApp.on(
 				chainId,
 			})
 
-			const data = await Promise.allSettled(
+			const receiptsPromises = await Promise.allSettled(
 				hashes.map((hash) =>
 					waitForTransactionReceipt(wagmiConfig, {
 						hash,
@@ -57,6 +57,19 @@ actionsApp.on(
 					}),
 				),
 			)
+
+			const receipts = receiptsPromises.map((result) => {
+				if (result.status === 'fulfilled') return result.value
+				throw result.reason
+			})
+
+			const data = receipts.map((receipt) => ({
+				to: receipt.to,
+				from: receipt.from,
+				hash: receipt.transactionHash,
+				gasUsed: receipt.gasUsed.toString(),
+				blockNumber: receipt.blockNumber.toString(),
+			}))
 
 			return context.json({ data, error: null })
 		} catch (error) {

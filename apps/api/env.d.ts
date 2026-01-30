@@ -1,11 +1,12 @@
 interface Env {
 	readonly PORT: string
-	readonly NODE_ENV: 'development' | 'production'
+
+	readonly TEMPO_MAINNET_RPC_URL: string
 }
 
 declare namespace NodeJS {
 	interface ProcessEnv extends Env {
-		readonly NODE_ENV: 'development' | 'production'
+		readonly NODE_ENV: 'development' | 'production' | 'test'
 	}
 }
 
