@@ -55,7 +55,7 @@ jobs:
         env:
           ANALYZE: "true"
           ANALYZE_JSON: "true"
-        run: pnpm build
+        run: bun run build
 
       - name: Parse bundle stats (main branch)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

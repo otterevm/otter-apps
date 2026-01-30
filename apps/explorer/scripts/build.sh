@@ -10,4 +10,4 @@ if [ -z "$CLOUDFLARE_ENV" ]; then
 fi
 
 export NODE_ENV="production"
-pnpm vite build --mode="$CLOUDFLARE_ENV"
+bun vite build --mode="$CLOUDFLARE_ENV"

@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"prebuild": "pnpm check:types",
+		"prebuild": "bun check:types",
 		"build": "vite build",
 		"check:types": "tsgo --project tsconfig.json --noEmit",
 		"dev": "vite",

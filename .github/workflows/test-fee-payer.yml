@@ -34,5 +34,5 @@ jobs:
         uses: ./.github/actions/install-dependencies
 
       - name: Run tests
-        run: pnpm test
+        run: bun test
         working-directory: apps/fee-payer

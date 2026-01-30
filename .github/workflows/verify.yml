@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/install-dependencies
 
       - name: Check code and types
-        run: pnpm gen:types && pnpm check
+        run: bun gen:types && bun check
 
       - name: Run Tempo Lints
-        run: pnpm lint:tempo
+        run: bun lint:tempo

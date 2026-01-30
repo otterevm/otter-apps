@@ -18,20 +18,20 @@ This is a **TypeScript monorepo** for applications on the Tempo blockchain appli
 ## Commands
 
 ```bash
-pnpm install                    # Install all dependencies
-pnpm check                      # Run Biome lint + format (with auto-fix)
-pnpm check:types                # Type check all workspaces
-pnpm build                      # Build all apps
+bun install                    # Install all dependencies
+bun check                      # Run Biome lint + format (with auto-fix)
+bun check:types                # Type check all workspaces
+bun run build                      # Build all apps
 ```
 
 ## CRITICAL: Pre-Commit Requirements
 
 ### Before Every Commit, You MUST
 
-1. ✅ **Type check**: `pnpm check:types` - ZERO errors
-2. ✅ **Lint/Format**: `pnpm check` - ZERO errors (auto-fixes applied)
-3. ✅ **Tests pass**: `pnpm test` in affected apps
-4. ✅ **Pre-commit hooks pass**: `pnpm precommit`
+1. ✅ **Type check**: `bun check:types` - ZERO errors
+2. ✅ **Lint/Format**: `bun check` - ZERO errors (auto-fixes applied)
+3. ✅ **Tests pass**: `bun test` in affected apps
+4. ✅ **Pre-commit hooks pass**: `bun precommit`
 
 ## Code Style Guidelines
 
@@ -82,10 +82,10 @@ export declare namespace MyComponent {
 
 ### After Completing Code Changes (BEFORE declaring "done")
 
-- [ ] Run `pnpm check` from repo root
-* [ ] Run `pnpm check:types` from repo root
+- [ ] Run `bun check` from repo root
+* [ ] Run `bun check:types` from repo root
 * [ ] Fix ALL type/lint errors before proceeding
-* [ ] Run tests in affected apps: `pnpm test`
+* [ ] Run tests in affected apps: `bun test`
 * [ ] Only THEN declare task complete
 
 ### Before Any Commit
@@ -139,7 +139,7 @@ apps/my-app/
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "check": "pnpm check:biome && pnpm check:types",
+    "check": "bun check:biome && bun check:types",
     "check:biome": "biome check --write --unsafe",
     "check:types": "tsgo --project tsconfig.json --noEmit",
     "gen:types": "wrangler types"

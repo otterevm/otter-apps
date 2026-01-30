@@ -76,7 +76,7 @@ jobs:
 
       - name: Build
         if: steps.changes.outputs.relevant == 'true'
-        run: pnpm build
+        run: bun run build
         working-directory: apps/${{ matrix.app }}
 
       - name: Upload Worker Version

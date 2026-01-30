@@ -18,7 +18,7 @@
 		"dev": "vite dev",
 		"preview": "vite preview",
 		"build": "vite build && node ./scripts/postbuild.ts",
-		"check": "pnpm check:biome && pnpm check:types",
+		"check": "bun check:biome && bun check:types",
 		"check:biome": "biome check --write --unsafe",
 		"check:types": "tsgo --project tsconfig.json --noEmit",
 		"process-icons": "node ./scripts/svg2g.ts",

@@ -5,14 +5,14 @@
 To run this application (defaults to `testnet` chain):
 
 ```bash
-pnpm install
-pnpm dev
+bun install
+bun dev
 ```
 
 To run `devnet` chain:
 
 ```sh
-pnpm vite dev --mode devnet
+bun vite dev --mode devnet
 ```
 
 ### Styling
@@ -26,13 +26,13 @@ This project uses [Biome](https://biomejs.dev) for linting and formatting.
 To format & lint:
 
 ```bash
-pnpm check
+bun check
 ```
 
 To check types:
 
 ```bash
-pnpm check:types
+bun check:types
 ```
 
 ## Adding new features

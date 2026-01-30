@@ -13,6 +13,6 @@ WebAuthn key management service using `Handler.keyManager` from `tempo.ts`.
 ## Development
 
 ```sh
-pnpm i
-pnpm dev
+bun i
+bun dev
 ```

@@ -3,8 +3,8 @@
  * Bundle size analysis and diff tool
  *
  * Usage:
- *   pnpm bundle:diff                    - Build and show bundle sizes (diff against baseline if exists)
- *   pnpm bundle:save                    - Build and save current sizes as baseline
+ *   bun bundle:diff                    - Build and show bundle sizes (diff against baseline if exists)
+ *   bun bundle:save                    - Build and save current sizes as baseline
  *
  * CI flags:
  *   --ci                                - Output markdown for GitHub PR comments
@@ -307,7 +307,7 @@ function printStats(stats: BundleStats, baseline?: BundleStats): void {
 		console.log(`\n  Baseline from: ${baseline.timestamp}`)
 	} else {
 		console.log(
-			"\n  No baseline found. Run 'pnpm bundle:save' to save current as baseline.",
+			"\n  No baseline found. Run 'bun bundle:save' to save current as baseline.",
 		)
 	}
 
@@ -443,7 +443,7 @@ async function main(): Promise<void> {
 			console.log('Building with bundle analysis...\n')
 		}
 		try {
-			execSync('pnpm bundle:analyze:json', {
+			execSync('bun bundle:analyze:json', {
 				cwd: rootDir,
 				stdio: options.ci ? 'pipe' : 'inherit',
 			})

@@ -4,16 +4,16 @@ A Cloudflare Worker that provides fee sponsorship for Tempo transactions.
 
 ```bash
 cp .env.example .env  # Copy example environment variables
-pnpm install          # Install dependencies
-pnpm dev              # Start development server
-pnpm dev:playground   # Start playground
+bun install          # Install dependencies
+bun dev              # Start development server
+bun dev:playground   # Start playground
 ```
 
 ## Testing
 
 ```bash
-pnpm test                            # Run integration tests (requires Docker)
-TEMPO_ENV=testnet pnpm test          # Run tests against testnet
+bun test                            # Run integration tests (requires Docker)
+TEMPO_ENV=testnet bun test          # Run tests against testnet
 ```
 
 Tests use Cloudflare's [vitest-pool-workers](https://developers.cloudflare.com/workers/testing/vitest-integration/) to run the Worker in a local Miniflare environment.

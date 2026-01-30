@@ -30,5 +30,5 @@
 3. Process icons (optional)
 
    ```sh
-   pnpm process-icons
+   bun process-icons
    ```

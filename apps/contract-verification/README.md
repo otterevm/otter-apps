@@ -61,8 +61,8 @@ and [/apps/contract-verification/scripts/medium-verify.sh](./scripts/medium-veri
 
 ```sh
 cp .env.example .env  # Copy example environment variables
-pnpm install          # Install dependencies
-pnpm dev              # Start development server
+bun install          # Install dependencies
+bun dev              # Start development server
 ```
 
 Once dev server is running, you can run scripts in the [/apps/contract-verification/scripts](./scripts) directory to populate your local database with verified contracts.

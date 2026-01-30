@@ -3,11 +3,11 @@
 	"private": true,
 	"scripts": {
 		"build": "echo 'noop'",
-		"check": "pnpm check:biome && pnpm check:types",
+		"check": "bun check:biome && bun check:types",
 		"check:biome": "biome check --write .",
 		"check:types": "tsgo --project tsconfig.json --noEmit",
 		"dev": "wrangler dev",
-		"dev:playground": "pnpm --filter fee-payer-playground dev",
+		"dev:playground": "bun --filter fee-payer-playground dev",
 		"deploy": "wrangler deploy",
 		"deploy:mainnet": "wrangler deploy --env mainnet",
 		"deploy:privy": "wrangler deploy --env privy",
