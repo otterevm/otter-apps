@@ -13,7 +13,6 @@
 		"@tanstack/react-query": "catalog:",
 		"react": "catalog:",
 		"react-dom": "catalog:",
-		"tempo.ts": "catalog:",
 		"viem": "catalog:",
 		"wagmi": "catalog:"
 	},

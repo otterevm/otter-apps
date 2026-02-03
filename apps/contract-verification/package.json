@@ -29,7 +29,6 @@
 		"hono-rate-limiter": "catalog:",
 		"ox": "catalog:",
 		"semver": "^7.7.3",
-		"tempo.ts": "catalog:",
 		"viem": "catalog:",
 		"zod": "catalog:"
 	},
