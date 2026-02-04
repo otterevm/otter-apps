@@ -1,7 +1,8 @@
 import type { Address } from 'ox'
 import * as React from 'react'
 import type { Abi } from 'viem'
-import { useBytecode } from 'wagmi'
+import { useBytecode, usePublicClient } from 'wagmi'
+import { Link } from '@tanstack/react-router'
 import { ConnectWallet } from '#comps/ConnectWallet.tsx'
 import { AbiViewer } from '#comps/ContractAbi.tsx'
 import { ContractReader } from '#comps/ContractReader.tsx'
@@ -10,7 +11,8 @@ import { ContractWriter } from '#comps/ContractWriter.tsx'
 import { cx } from '#lib/css'
 import { ellipsis } from '#lib/chars.ts'
 import type { ContractSource } from '#lib/domain/contract-source.ts'
-import { getContractAbi } from '#lib/domain/contracts.ts'
+import { getContractAbi, autoloadAbi } from '#lib/domain/contracts.ts'
+import { detectProxy, type ProxyInfo } from '#lib/domain/proxy.ts'
 import { useCopy, useDownload } from '#lib/hooks.ts'
 import ChevronDownIcon from '~icons/lucide/chevron-down'
 import CopyIcon from '~icons/lucide/copy'
@@ -217,6 +219,7 @@ function BytecodeSection(props: { address: Address.Address }) {
 
 /**
  * Interact tab content - shows Read and Write contract functions
+ * Supports proxy passthrough - detects proxy contracts and fetches implementation ABI
  */
 export function InteractTabContent(props: {
 	address: Address.Address
@@ -224,11 +227,54 @@ export function InteractTabContent(props: {
 	docsUrl?: string
 }) {
 	const { address, docsUrl } = props
+	const publicClient = usePublicClient()
 
 	const [readExpanded, setReadExpanded] = React.useState(true)
 	const [writeExpanded, setWriteExpanded] = React.useState(true)
+	const [proxyInfo, setProxyInfo] = React.useState<ProxyInfo | null>(null)
+	const [implAbi, setImplAbi] = React.useState<Abi | null>(null)
+	const [isLoadingProxy, setIsLoadingProxy] = React.useState(false)
 
-	const abi = props.abi ?? getContractAbi(address)
+	// Detect proxy and load implementation ABI
+	React.useEffect(() => {
+		if (!publicClient) return
+
+		const loadProxyInfo = async () => {
+			setIsLoadingProxy(true)
+			try {
+				const proxy = await detectProxy(publicClient, address)
+				setProxyInfo(proxy)
+
+				// If it's a proxy and we don't have an ABI, try to fetch from implementation
+				if (proxy.isProxy && proxy.implementationAddress && !props.abi) {
+					const loadedAbi = await autoloadAbi(proxy.implementationAddress)
+					if (loadedAbi) {
+						setImplAbi(loadedAbi)
+					}
+				}
+			} catch {
+				// Ignore proxy detection errors
+			} finally {
+				setIsLoadingProxy(false)
+			}
+		}
+
+		void loadProxyInfo()
+	}, [publicClient, address, props.abi])
+
+	// Use implementation ABI if available, otherwise fall back to provided or registry ABI
+	const abi = props.abi ?? implAbi ?? getContractAbi(address)
+
+	if (isLoadingProxy) {
+		return (
+			<div className="rounded-[10px] bg-card-header p-[18px] h-full">
+				<p className="text-sm font-medium text-tertiary">
+					Loading contract information{ellipsis}
+				</p>
+			</div>
+		)
+	}
+
 	if (!abi) {
 		return (
 			<div className="rounded-[10px] bg-card-header p-[18px] h-full">
@@ -241,9 +287,28 @@ export function InteractTabContent(props: {
 
 	return (
 		<div className="flex flex-col h-full [&>*:last-child]:border-b-transparent">
+			{/* Proxy Info Banner */}
+			{proxyInfo?.isProxy && proxyInfo.implementationAddress && (
+				<div className="flex items-center gap-[8px] px-[16px] py-[10px] bg-accent/10 border-b border-dashed border-distinct text-[13px]">
+					<span className="px-[6px] py-[2px] bg-accent/20 text-accent rounded text-[11px] font-medium">
+						{proxyInfo.type} Proxy
+					</span>
+					<span className="text-secondary">Implementation:</span>
+					<Link
+						to="/address/$address"
+						params={{ address: proxyInfo.implementationAddress }}
+						search={{ tab: 'interact' }}
+						className="font-mono text-[12px] text-accent hover:underline"
+					>
+						{proxyInfo.implementationAddress.slice(0, 10)}...
+						{proxyInfo.implementationAddress.slice(-8)}
+					</Link>
+				</div>
+			)}
+
 			{/* Write Contract Section */}
 			<CollapsibleSection
-				first
+				first={!proxyInfo?.isProxy}
 				title="Write"
 				expanded={writeExpanded}
 				onToggle={() => setWriteExpanded(!writeExpanded)}
