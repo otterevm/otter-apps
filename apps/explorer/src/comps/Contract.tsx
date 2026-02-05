@@ -19,6 +19,8 @@ import CopyIcon from '~icons/lucide/copy'
 import DownloadIcon from '~icons/lucide/download'
 import ExternalLinkIcon from '~icons/lucide/external-link'
 
+type InteractMode = 'read' | 'write' | 'readProxy' | 'writeProxy'
+
 /**
  * Contract tab content - shows ABI and Source
  */
@@ -218,9 +220,50 @@ function BytecodeSection(props: { address: Address.Address }) {
 }
 
 /**
+ * Sub-tabs for switching between read/write modes
+ */
+function InteractSubTabs(props: {
+	mode: InteractMode
+	onModeChange: (mode: InteractMode) => void
+	isProxy: boolean
+}) {
+	const { mode, onModeChange, isProxy } = props
+
+	const tabs: Array<{ id: InteractMode; label: string; proxyOnly?: boolean }> =
+		[
+			{ id: 'read', label: 'Read Contract' },
+			{ id: 'write', label: 'Write Contract' },
+			{ id: 'readProxy', label: 'Read as Proxy', proxyOnly: true },
+			{ id: 'writeProxy', label: 'Write as Proxy', proxyOnly: true },
+		]
+
+	const visibleTabs = tabs.filter((tab) => !tab.proxyOnly || isProxy)
+
+	return (
+		<div className="flex items-center gap-[6px] px-[16px] py-[10px] border-b border-dashed border-distinct">
+			{visibleTabs.map((tab) => (
+				<button
+					key={tab.id}
+					type="button"
+					onClick={() => onModeChange(tab.id)}
+					className={cx(
+						'px-[10px] py-[4px] text-[12px] rounded-[6px] cursor-pointer transition-colors',
+						mode === tab.id
+							? 'bg-accent text-white'
+							: 'text-secondary hover:text-primary hover:bg-surface',
+					)}
+				>
+					{tab.label}
+				</button>
+			))}
+		</div>
+	)
+}
+
+/**
  * Interact tab content - shows Read and Write contract functions
  * Supports proxy passthrough - detects proxy contracts and fetches implementation ABI
- * Also allows interacting with the proxy contract's own functions
+ * Uses Etherscan-style horizontal tabs for switching between modes
  */
 export function InteractTabContent(props: {
 	address: Address.Address
@@ -230,14 +273,11 @@ export function InteractTabContent(props: {
 	const { address, docsUrl } = props
 	const publicClient = usePublicClient()
 
-	const [readExpanded, setReadExpanded] = React.useState(true)
-	const [writeExpanded, setWriteExpanded] = React.useState(true)
-	const [proxyFunctionsExpanded, setProxyFunctionsExpanded] =
-		React.useState(false)
 	const [proxyInfo, setProxyInfo] = React.useState<ProxyInfo | null>(null)
 	const [implAbi, setImplAbi] = React.useState<Abi | null>(null)
 	const [proxyAbi, setProxyAbi] = React.useState<Abi | null>(null)
 	const [isLoadingProxy, setIsLoadingProxy] = React.useState(false)
+	const [mode, setMode] = React.useState<InteractMode | null>(null)
 
 	// Detect proxy and load implementation ABI
 	React.useEffect(() => {
@@ -257,9 +297,15 @@ export function InteractTabContent(props: {
 					])
 					if (loadedImplAbi) setImplAbi(loadedImplAbi)
 					if (loadedProxyAbi) setProxyAbi(loadedProxyAbi)
+					// Default to readProxy for proxy contracts (what users usually want)
+					setMode('readProxy')
+				} else {
+					// Default to read for non-proxy contracts
+					setMode('read')
 				}
 			} catch {
-				// Ignore proxy detection errors
+				// Ignore proxy detection errors, default to read mode
+				setMode('read')
 			} finally {
 				setIsLoadingProxy(false)
 			}
@@ -271,7 +317,7 @@ export function InteractTabContent(props: {
 	// Use implementation ABI if available, otherwise fall back to provided or registry ABI
 	const abi = props.abi ?? implAbi ?? getContractAbi(address)
 
-	if (isLoadingProxy) {
+	if (isLoadingProxy || mode === null) {
 		return (
 			<div className="rounded-[10px] bg-card-header p-[18px] h-full">
 				<p className="text-sm font-medium text-tertiary">
@@ -293,12 +339,28 @@ export function InteractTabContent(props: {
 
 	const isProxy = proxyInfo?.isProxy ?? false
 	const implementationAddress = proxyInfo?.implementationAddress
-	const hasProxyFunctions = proxyAbi && proxyAbi.length > 0
+	const isWriteMode = mode === 'write' || mode === 'writeProxy'
+	const isProxyMode = mode === 'readProxy' || mode === 'writeProxy'
+
+	// Determine which ABI to use based on mode
+	// For read/write (direct proxy functions): use proxyAbi
+	// For readProxy/writeProxy (implementation via proxy): use implAbi
+	const activeAbi = isProxyMode ? abi : (proxyAbi ?? abi)
 
 	return (
-		<div className="flex flex-col h-full [&>*:last-child]:border-b-transparent">
-			{/* Proxy Info Banner */}
-			{isProxy && implementationAddress && (
+		<div className="flex flex-col h-full">
+			{/* Sub-tabs */}
+			<div className="flex items-center justify-between border-b border-dashed border-distinct">
+				<InteractSubTabs mode={mode} onModeChange={setMode} isProxy={isProxy} />
+				{isWriteMode && (
+					<div className="px-[16px]">
+						<ConnectWallet />
+					</div>
+				)}
+			</div>
+
+			{/* Proxy Info Banner - only shown in proxy modes */}
+			{isProxyMode && isProxy && implementationAddress && (
 				<div className="flex items-center gap-[8px] px-[16px] py-[10px] bg-accent/10 border-b border-dashed border-distinct text-[13px]">
 					<span className="px-[6px] py-[2px] bg-accent/20 text-accent rounded text-[11px] font-medium">
 						{proxyInfo?.type} Proxy
@@ -316,52 +378,14 @@ export function InteractTabContent(props: {
 				</div>
 			)}
 
-			{/* Write Contract Section (Implementation functions via proxy) */}
-			<CollapsibleSection
-				first={!isProxy}
-				title={isProxy ? 'Write (via Proxy)' : 'Write'}
-				expanded={writeExpanded}
-				onToggle={() => setWriteExpanded(!writeExpanded)}
-				actions={<ConnectWallet />}
-			>
-				<div className="px-[10px] pb-[10px]">
-					<ContractWriter address={address} abi={abi} />
-				</div>
-			</CollapsibleSection>
-
-			{/* Read Contract Section (Implementation functions via proxy) */}
-			<CollapsibleSection
-				title={isProxy ? 'Read (via Proxy)' : 'Read'}
-				expanded={readExpanded}
-				onToggle={() => setReadExpanded(!readExpanded)}
-			>
-				<div className="px-[10px] pb-[10px]">
-					<ContractReader address={address} abi={abi} docsUrl={docsUrl} />
-				</div>
-			</CollapsibleSection>
-
-			{/* Proxy Contract Functions Section */}
-			{isProxy && hasProxyFunctions && (
-				<CollapsibleSection
-					title="Proxy Contract Functions"
-					expanded={proxyFunctionsExpanded}
-					onToggle={() => setProxyFunctionsExpanded(!proxyFunctionsExpanded)}
-					actions={
-						<span className="text-[11px] text-secondary">
-							Direct proxy functions
-						</span>
-					}
-				>
-					<div className="px-[10px] pb-[10px] flex flex-col gap-[12px]">
-						<div className="text-[12px] text-secondary px-[6px] py-[4px] bg-amber-500/10 rounded border border-amber-500/20">
-							These are functions defined on the proxy contract itself, not the
-							implementation.
-						</div>
-						<ContractReader address={address} abi={proxyAbi} />
-						<ContractWriter address={address} abi={proxyAbi} />
-					</div>
-				</CollapsibleSection>
-			)}
+			{/* Content based on mode */}
+			<div className="px-[10px] py-[10px] flex-1 overflow-auto">
+				{isWriteMode ? (
+					<ContractWriter address={address} abi={activeAbi} />
+				) : (
+					<ContractReader address={address} abi={activeAbi} docsUrl={docsUrl} />
+				)}
+			</div>
 		</div>
 	)
 }
