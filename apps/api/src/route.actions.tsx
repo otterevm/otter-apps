@@ -73,8 +73,29 @@ actionsApp.on(
 			return context.json({ data, error: null })
 		} catch (error) {
 			console.error(error)
-			const errorMessage = error instanceof Error ? error.message : error
-			return context.json({ data: null, error: errorMessage }, 500)
+			const message = error instanceof Error ? error.message : String(error)
+
+			// Extract only the RPC error code - never trust message content
+			const codeMatch = message.match(/error code (-?\d+)/i)
+			const code = codeMatch ? Number(codeMatch[1]) : undefined
+
+			// Map known error codes to safe, hardcoded messages
+			const safeMessages: Record<number, string> = {
+				[-32000]:
+					'Insufficient faucet liquidity. See https://docs.tempo.xyz/protocol/fees',
+				[-32001]: 'Address has already been funded recently',
+				[-32602]: 'Invalid address format',
+			}
+
+			const safeError =
+				code !== undefined && safeMessages[code]
+					? safeMessages[code]
+					: 'Faucet request failed'
+
+			return context.json(
+				{ data: null, error: safeError, ...(code !== undefined && { code }) },
+				500,
+			)
 		}
 	},
 )
