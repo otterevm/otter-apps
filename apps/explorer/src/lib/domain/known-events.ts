@@ -99,11 +99,23 @@ function createDetectors(
 				const mintKey = `mint:${address}:${amount}:${to}`
 				const memo = mintBurnMemos?.get(mintKey)
 
+				// Differentiate between minting and receiving a mint:
+				// - "Receive Mint" when viewer is the recipient but not the minter
+				// - "Mint" when viewer is the minter or no viewer context
+				const isRecipientNotMinter =
+					viewer &&
+					transactionSender &&
+					Address.isEqual(viewer, to) &&
+					!Address.isEqual(viewer, transactionSender)
+
 				return {
 					type: 'mint',
 					note: memo,
 					parts: [
-						{ type: 'action', value: 'Mint' },
+						{
+							type: 'action',
+							value: isRecipientNotMinter ? 'Receive Mint' : 'Mint',
+						},
 						{
 							type: 'amount',
 							value: createAmount(amount, address),
