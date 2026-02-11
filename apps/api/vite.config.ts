@@ -3,7 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import NodeChildProcess from 'node:child_process'
 import { cloudflare } from '@cloudflare/vite-plugin'
 
-const commitSha =
+export const commitSha =
 	NodeChildProcess.execSync('git rev-parse --short HEAD').toString().trim() ||
 	NodeProcess.env.CF_PAGES_COMMIT_SHA?.slice(0, 7)
 

@@ -6,16 +6,20 @@ import { HTTPException } from 'hono/http-exception'
 
 import { Docs } from '#route.docs.tsx'
 import { geckoApp } from '#route.gecko.ts'
-import { tokensApp } from '#route.tokens.tsx'
-import { wagmiConfig } from '#wagmi.config.ts'
 import { actionsApp } from '#route.actions.tsx'
+import { walletsApp } from '#route.wallets.tsx'
+import { accountsApp } from '#route.accounts.tsx'
+import { supportedChainIds } from '#wagmi.config.ts'
+import { contractsApp } from '#route.contracts.tsx'
+import { addressesApp } from '#route.addresses.tsx'
+import { fungiblesApp } from '#route.fungibles.tsx'
+import { transactionsApp } from '#route.transactions.tsx'
+import { tokensApp, feeTokensApp } from '#route.tokens.tsx'
+
 import OpenAPISpec from '#schema/openapi.json' with { type: 'json' }
 
 const app = new Hono<{ Bindings: Cloudflare.Env }>()
-
-app.use('*', cors())
-
-app
+	.use('*', cors())
 	.get('/ping', (context) => context.text('pong'))
 	.get('/health', (context) => context.text('ok'))
 	.get('/', (context) => context.redirect('/docs'))
@@ -29,35 +33,40 @@ app
 			timestamp: Date.now(),
 			rev: __BUILD_VERSION__,
 			url: new URL(context.req.url).origin,
-			chains: wagmiConfig.chains.map((_) => _.id),
+			chains: supportedChainIds,
 			source: 'https://github.com/tempoxyz/tempo-apps/apps/api',
 		}),
 	)
-
-app.use(
-	'*',
-	some(
-		// query param auth (?key=<token>)
-		async (context, next) => {
-			const key = context.req.query('key')
-			if (key !== process.env.API_KEY)
-				throw new HTTPException(401, { message: 'Unauthorized' })
-			return await next()
-		},
-		// header auth (X-Tempo-API-Key: <token>)
-		async (context, next) => {
-			const key = context.req.header('X-Tempo-API-Key')
-			if (key !== process.env.API_KEY)
-				throw new HTTPException(401, { message: 'Unauthorized' })
-			return await next()
-		},
-	),
-)
-
-app.route('/actions', actionsApp)
-app.route('/gecko/:chainId', geckoApp)
-app.route('/gecko', geckoApp)
-app.route('/tokens', tokensApp)
+	.use(
+		'*',
+		some(
+			// query param auth (?key=<token>)
+			async (context, next) => {
+				const key = context.req.query('key')
+				if (key !== process.env.API_KEY)
+					throw new HTTPException(401, { message: 'Unauthorized' })
+				return await next()
+			},
+			// header auth (X-Tempo-API-Key: <token>)
+			async (context, next) => {
+				const key = context.req.header('X-Tempo-API-Key')
+				if (key !== process.env.API_KEY)
+					throw new HTTPException(401, { message: 'Unauthorized' })
+				return await next()
+			},
+		),
+	)
+	.route('/actions', actionsApp)
+	.route('/gecko/:chainId', geckoApp)
+	.route('/gecko', geckoApp)
+	.route('/tokens', tokensApp)
+	.route('/fee-tokens', feeTokensApp)
+	.route('/accounts', accountsApp)
+	.route('/contracts', contractsApp)
+	.route('/transactions', transactionsApp)
+	.route('/addresses', addressesApp)
+	.route('/wallets', walletsApp)
+	.route('/fungibles', fungiblesApp)
 
 if (process.env.NODE_ENV === 'development') showRoutes(app)
 

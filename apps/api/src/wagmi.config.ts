@@ -41,6 +41,12 @@ export const supportedChains = {
 	[tempoTestnet.id]: tempoTestnet,
 } as const
 
+export const chainFeeTokens = {
+	[tempoDevnet.id]: ALPHA_USD,
+	[tempoTestnet.id]: ALPHA_USD,
+	[tempoMainnet.id]: PATH_USD,
+} as const
+
 export const wagmiConfig = createConfig({
 	chains: [tempoDevnet, tempoMainnet, tempoTestnet],
 	transports: {

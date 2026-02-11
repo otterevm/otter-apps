@@ -606,6 +606,349 @@
 					}
 				}
 			}
+		},
+		"/fungibles/assets": {
+			"get": {
+				"tags": ["Tokens"],
+				"summary": "Token metadata and prices by address",
+				"description": "Fetch metadata (name, symbol, decimals) and optional DEX prices for one or more tokens.",
+				"operationId": "get_fungible_assets",
+				"parameters": [
+					{
+						"name": "fungible_ids",
+						"in": "query",
+						"description": "Comma-separated fungible IDs in format `{chainId}.{address}`",
+						"required": true,
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "include_prices",
+						"in": "query",
+						"description": "Set to `0` to exclude DEX prices (default: include)",
+						"required": false,
+						"schema": { "type": "string", "enum": ["0", "1"], "default": "1" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Token metadata and prices",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"assets": {
+											"type": "array",
+											"items": { "$ref": "#/components/schemas/FungibleAsset" }
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": { "description": "Invalid request" }
+				}
+			}
+		},
+		"/fungibles/balances": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Token balances by wallet(s)",
+				"description": "Query token balances for one or more wallets. Automatically discovers tokens via transfer history unless specific fungible_ids are provided.",
+				"operationId": "get_fungible_balances",
+				"parameters": [
+					{
+						"name": "wallet_addresses",
+						"in": "query",
+						"required": true,
+						"description": "Comma-separated wallet addresses",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "chains",
+						"in": "query",
+						"required": false,
+						"description": "Comma-separated chain IDs (default: `4217`)",
+						"schema": { "type": "string", "default": "4217" }
+					},
+					{
+						"name": "fungible_ids",
+						"in": "query",
+						"required": false,
+						"description": "Filter to specific tokens (format: `{chainId}.{address}`)",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "tip20_only",
+						"in": "query",
+						"required": false,
+						"description": "Set to `1` to only return TIP-20 tokens",
+						"schema": { "type": "string", "enum": ["0", "1"], "default": "0" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Token balances for the wallet(s)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"properties": {
+										"balances": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/FungibleBalance"
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": { "description": "Invalid request" }
+				}
+			}
+		},
+		"/transactions/{chainId}/{hash}": {
+			"get": {
+				"tags": ["Transactions"],
+				"summary": "Transaction by hash",
+				"description": "Get transaction details including status, gas used, and decoded transfers.",
+				"operationId": "get_transaction",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"description": "Chain ID",
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "hash",
+						"in": "path",
+						"required": true,
+						"description": "Transaction hash (0x...)",
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{64}$" }
+					}
+				],
+				"responses": {
+					"200": { "description": "Transaction details" },
+					"404": { "description": "Transaction not found" }
+				}
+			}
+		},
+		"/addresses/{chainId}/{address}/transactions": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Transactions by wallet",
+				"description": "Get transaction history for an address via Index Supply.",
+				"operationId": "get_address_transactions",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "integer", "default": 50, "maximum": 100 }
+					},
+					{
+						"name": "offset",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "integer", "default": 0 }
+					}
+				],
+				"responses": {
+					"200": { "description": "Transaction history" }
+				}
+			}
+		},
+		"/addresses/{chainId}/{address}/transfers": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Token transfers by wallet",
+				"description": "Get ERC-20 token transfer history for an address.",
+				"operationId": "get_address_transfers",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					},
+					{
+						"name": "token",
+						"in": "query",
+						"required": false,
+						"description": "Filter to a specific token address",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "integer", "default": 50, "maximum": 100 }
+					}
+				],
+				"responses": {
+					"200": { "description": "Token transfer history" }
+				}
+			}
+		},
+		"/wallets/{chainId}/{address}/allowances": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Allowances by wallet",
+				"description": "Get all token allowances granted by a wallet.",
+				"operationId": "get_wallet_allowances",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "integer", "default": 100 }
+					}
+				],
+				"responses": {
+					"200": { "description": "Wallet allowances" }
+				}
+			}
+		},
+		"/wallets/{chainId}/{address}/balance-history": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Balance history by wallet",
+				"description": "Get historical balance changes for a wallet.",
+				"operationId": "get_balance_history",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					},
+					{
+						"name": "token",
+						"in": "query",
+						"required": false,
+						"description": "Filter to a specific token",
+						"schema": { "type": "string" }
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": { "type": "integer", "default": 100 }
+					}
+				],
+				"responses": {
+					"200": { "description": "Balance history" }
+				}
+			}
+		},
+		"/fee-tokens/{chainId}": {
+			"get": {
+				"tags": ["Tokens"],
+				"summary": "Fee tokens by chain",
+				"description": "List tokens that can be used to pay transaction fees (TIP-20 with USD currency).",
+				"operationId": "get_fee_tokens",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					}
+				],
+				"responses": {
+					"200": { "description": "List of fee-eligible tokens" }
+				}
+			}
+		},
+		"/contracts/{chainId}/{address}": {
+			"get": {
+				"tags": ["Contracts"],
+				"summary": "Contract info by address",
+				"description": "Get contract metadata including verified source and ABI if available.",
+				"operationId": "get_contract",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					}
+				],
+				"responses": {
+					"200": { "description": "Contract info" }
+				}
+			}
+		},
+		"/accounts/{chainId}/{address}": {
+			"get": {
+				"tags": ["Wallets"],
+				"summary": "Account info by address",
+				"description": "Get account balance and nonce.",
+				"operationId": "get_account",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "integer", "enum": [31318, 42431, 4217] }
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string", "pattern": "^0x[a-fA-F0-9]{40}$" }
+					}
+				],
+				"responses": {
+					"200": { "description": "Account info" }
+				}
+			}
 		}
 	},
 	"components": {
@@ -1065,6 +1408,71 @@
 						}
 					}
 				}
+			},
+			"FungibleAsset": {
+				"type": "object",
+				"description": "Token metadata and price information",
+				"properties": {
+					"fungible_id": {
+						"type": "string",
+						"description": "Unique ID in format {chainId}.{address}"
+					},
+					"chain": {
+						"type": "integer",
+						"description": "Chain ID"
+					},
+					"address": {
+						"type": "string",
+						"description": "Token contract address"
+					},
+					"name": {
+						"type": "string",
+						"nullable": true
+					},
+					"symbol": {
+						"type": "string",
+						"nullable": true
+					},
+					"decimals": {
+						"type": "integer",
+						"nullable": true
+					},
+					"supply": {
+						"type": "string",
+						"nullable": true,
+						"description": "Total supply (raw)"
+					},
+					"prices": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"quote_token": { "type": "string" },
+								"quote_symbol": { "type": "string" },
+								"price": { "type": "string" },
+								"pool": { "type": "string" }
+							}
+						}
+					}
+				}
+			},
+			"FungibleBalance": {
+				"type": "object",
+				"description": "Token balance for a wallet",
+				"properties": {
+					"fungible_id": {
+						"type": "string",
+						"description": "Unique ID in format {chainId}.{address}"
+					},
+					"wallet_address": {
+						"type": "string",
+						"description": "Wallet address"
+					},
+					"balance": {
+						"type": "string",
+						"description": "Raw balance (wei)"
+					}
+				}
 			}
 		}
 	},
@@ -1083,7 +1491,19 @@
 		},
 		{
 			"name": "Tokens",
-			"description": "Token information endpoints (holders, allowances)"
+			"description": "Token metadata, prices, holders, and allowances"
+		},
+		{
+			"name": "Wallets",
+			"description": "Wallet balances, transactions, and allowances"
+		},
+		{
+			"name": "Transactions",
+			"description": "Transaction lookup and history"
+		},
+		{
+			"name": "Contracts",
+			"description": "Contract information and verification"
 		}
 	]
 }

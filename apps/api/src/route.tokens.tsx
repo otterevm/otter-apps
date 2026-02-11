@@ -7,13 +7,14 @@ import { readContracts } from 'wagmi/actions'
 import { zValidator } from '@hono/zod-validator'
 import { HTTPException } from 'hono/http-exception'
 
-import { idxClient } from '#utilities/indexer.ts'
 import {
-	supportedChainIds,
-	wagmiConfig,
-	zAddress,
 	zChainId,
+	zAddress,
+	wagmiConfig,
+	chainFeeTokens,
+	supportedChainIds,
 } from '#wagmi.config.ts'
+import { idxClient } from '#utilities/indexer.ts'
 
 const { queryBuilder } = idxClient()
 
@@ -267,4 +268,65 @@ tokensApp.get(
 	},
 )
 
-export { tokensApp }
+// ---------------------------------------------------------------------------
+// Fee tokens sub-app
+// ---------------------------------------------------------------------------
+const feeTokensApp = new Hono<{ Bindings: Cloudflare.Env }>()
+
+feeTokensApp.get(
+	'/:chainId',
+	zValidator('param', z.object({ chainId: zChainId() }), validationError),
+	async (context) => {
+		const { chainId } = context.req.valid('param')
+		const feeTokenAddress = chainFeeTokens[
+			chainId as keyof typeof chainFeeTokens
+		] as Address.Address | undefined
+		if (!feeTokenAddress)
+			return context.json(
+				{ message: `No fee token configured for chain ${chainId}` },
+				400,
+			)
+
+		const results = await readContracts(wagmiConfig, {
+			contracts: [
+				{
+					address: feeTokenAddress,
+					abi: Abis.tip20,
+					functionName: 'name',
+				},
+				{
+					address: feeTokenAddress,
+					abi: Abis.tip20,
+					functionName: 'symbol',
+				},
+				{
+					address: feeTokenAddress,
+					abi: Abis.tip20,
+					functionName: 'decimals',
+				},
+			],
+		})
+
+		const name =
+			results[0]?.status === 'success' ? String(results[0].result) : null
+		const symbol =
+			results[1]?.status === 'success' ? String(results[1].result) : null
+		const decimals =
+			results[2]?.status === 'success' ? Number(results[2].result) : null
+
+		return context.json({
+			chainId,
+			fee_tokens: [
+				{
+					address: feeTokenAddress,
+					name,
+					symbol,
+					decimals,
+					currency: 'USD',
+				},
+			],
+		})
+	},
+)
+
+export { tokensApp, feeTokensApp }
