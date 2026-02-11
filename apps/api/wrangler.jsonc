@@ -7,7 +7,16 @@
 	"keep_vars": true,
 	"workers_dev": true,
 	"preview_urls": true,
-
+	"ratelimits": [
+		{
+			"name": "RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 50,
+				"period": 10
+			}
+		}
+	],
 	"observability": {
 		"enabled": true,
 		"logs": {

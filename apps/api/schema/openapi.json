@@ -335,6 +335,164 @@
 				}
 			}
 		},
+		"/tokens/{chainId}/{address}/holders": {
+			"get": {
+				"tags": ["Tokens"],
+				"summary": "Get token holders",
+				"description": "Returns a list of addresses that hold the specified token along with their balances. Uses Index Supply to discover holders and RPC to fetch current balances.",
+				"operationId": "get_token_holders",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"description": "Chain ID of the Tempo network",
+						"required": true,
+						"schema": {
+							"type": "integer",
+							"enum": [31318, 42431, 4217]
+						}
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"description": "Token contract address",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"pattern": "^0x[a-fA-F0-9]{40}$"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "Maximum number of holders to return",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 1000
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of token holders with balances",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TokenHoldersResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid chain or address",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponse"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Index Supply not available for this chain",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/tokens/{chainId}/{address}/allowances": {
+			"get": {
+				"tags": ["Tokens"],
+				"summary": "Get token allowances",
+				"description": "Returns a list of approval events for the specified token, showing which addresses have approved spending.",
+				"operationId": "get_token_allowances",
+				"parameters": [
+					{
+						"name": "chainId",
+						"in": "path",
+						"description": "Chain ID of the Tempo network",
+						"required": true,
+						"schema": {
+							"type": "integer",
+							"enum": [31318, 42431, 4217]
+						}
+					},
+					{
+						"name": "address",
+						"in": "path",
+						"description": "Token contract address",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"pattern": "^0x[a-fA-F0-9]{40}$"
+						}
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "Maximum number of allowances to return",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"default": 20,
+							"minimum": 1,
+							"maximum": 1000
+						}
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "List of token allowances",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/TokenAllowancesResponse"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid chain or address",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponse"
+								}
+							}
+						}
+					},
+					"500": {
+						"description": "Failed to fetch allowances",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponse"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "Index Supply not available for this chain",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/MessageResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/actions/faucet": {
 			"get": {
 				"tags": ["Actions"],
@@ -750,6 +908,151 @@
 						]
 					}
 				}
+			},
+			"MessageResponse": {
+				"type": "object",
+				"description": "Simple message response",
+				"required": ["message"],
+				"properties": {
+					"message": {
+						"type": "string",
+						"description": "Response message"
+					},
+					"hint": {
+						"type": "string",
+						"description": "Optional hint for resolving the issue"
+					}
+				}
+			},
+			"TokenHolder": {
+				"type": "object",
+				"description": "Token holder with balance",
+				"required": ["address", "balance", "decimals"],
+				"properties": {
+					"address": {
+						"type": "string",
+						"description": "Holder's wallet address",
+						"pattern": "^0x[a-fA-F0-9]{40}$"
+					},
+					"balance": {
+						"type": "string",
+						"description": "Token balance (raw, as string to handle large numbers)"
+					},
+					"decimals": {
+						"type": "integer",
+						"description": "Token decimals"
+					}
+				}
+			},
+			"TokenHoldersResponse": {
+				"type": "object",
+				"description": "Response containing token holders",
+				"required": ["chainId", "token_address", "block_height", "holders", "pagination"],
+				"properties": {
+					"chainId": {
+						"type": "integer",
+						"description": "Chain ID"
+					},
+					"token_address": {
+						"type": "string",
+						"description": "Token contract address"
+					},
+					"block_height": {
+						"type": "integer",
+						"description": "Block height at time of query"
+					},
+					"holders": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TokenHolder"
+						},
+						"description": "List of token holders"
+					},
+					"pagination": {
+						"type": "object",
+						"required": ["limit", "total_discovered"],
+						"properties": {
+							"limit": {
+								"type": "integer",
+								"description": "Requested limit"
+							},
+							"total_discovered": {
+								"type": "integer",
+								"description": "Total unique addresses discovered via Transfer events"
+							}
+						}
+					}
+				}
+			},
+			"TokenAllowance": {
+				"type": "object",
+				"description": "Token allowance record",
+				"required": ["owner", "spender", "amount", "block_num", "tx_hash"],
+				"properties": {
+					"owner": {
+						"type": "string",
+						"description": "Token owner address",
+						"pattern": "^0x[a-fA-F0-9]{40}$"
+					},
+					"spender": {
+						"type": "string",
+						"description": "Approved spender address",
+						"pattern": "^0x[a-fA-F0-9]{40}$"
+					},
+					"amount": {
+						"type": "string",
+						"description": "Approved amount (raw, as string)"
+					},
+					"block_num": {
+						"type": "integer",
+						"description": "Block number of the approval"
+					},
+					"tx_hash": {
+						"type": "string",
+						"description": "Transaction hash of the approval",
+						"pattern": "^0x[a-fA-F0-9]{64}$"
+					}
+				}
+			},
+			"TokenAllowancesResponse": {
+				"type": "object",
+				"description": "Response containing token allowances",
+				"required": ["chainId", "token_address", "block_height", "allowances", "pagination"],
+				"properties": {
+					"chainId": {
+						"type": "integer",
+						"description": "Chain ID"
+					},
+					"token_address": {
+						"type": "string",
+						"description": "Token contract address"
+					},
+					"block_height": {
+						"type": "integer",
+						"description": "Block height at time of query"
+					},
+					"allowances": {
+						"type": "array",
+						"items": {
+							"$ref": "#/components/schemas/TokenAllowance"
+						},
+						"description": "List of token allowances"
+					},
+					"pagination": {
+						"type": "object",
+						"required": ["limit", "has_more"],
+						"properties": {
+							"limit": {
+								"type": "integer",
+								"description": "Requested limit"
+							},
+							"has_more": {
+								"type": "boolean",
+								"description": "Whether more results are available"
+							}
+						}
+					}
+				}
 			}
 		}
 	},
@@ -765,6 +1068,10 @@
 		{
 			"name": "System",
 			"description": "System and health check endpoints"
+		},
+		{
+			"name": "Tokens",
+			"description": "Token information endpoints (holders, allowances)"
 		}
 	]
 }

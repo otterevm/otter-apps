@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toUnixTimestamp, computePriceNative } from '../src/gecko.utils.ts'
+import { toUnixTimestamp, computePriceNative } from '../src/utilities/format.ts'
 
 describe('toUnixTimestamp', () => {
 	it('parses IDX timestamptz with 3-part offset', () => {

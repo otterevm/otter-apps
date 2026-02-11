@@ -1,6 +1,7 @@
 import { html, raw } from 'hono/html'
+import type { ApiReferenceConfigurationWithMultipleSources } from '@scalar/types/api-reference'
+
 import packageJSON from '#package.json' with { type: 'json' }
-import type { createApiReference } from '@scalar/api-reference'
 
 const getScalarConfig = (baseUrl: string) =>
 	({
@@ -15,6 +16,29 @@ const getScalarConfig = (baseUrl: string) =>
 		proxyUrl: 'https://proxy.scalar.com',
 		favicon: 'https://explore.tempo.xyz/favicon.ico',
 		sources: [{ url: '/schema/openapi.json', default: true }],
+		authentication: {
+			preferredSecurityScheme: 'apiKey',
+			securitySchemes: {
+				apiKeyHeader: {
+					in: 'header',
+					name: 'X-Tempo-API-Key',
+					nameKey: 'X-Tempo-API-Key',
+					type: 'apiKey',
+					description: 'Tempo API Key',
+				},
+				apiKey: {
+					in: 'query',
+					name: 'key',
+					nameKey: 'key',
+					type: 'apiKey',
+					description: 'Tempo API Key',
+				},
+			},
+		},
+		defaultHttpClient: {
+			clientKey: 'curl',
+			targetKey: 'shell',
+		},
 		servers: [
 			{ url: baseUrl, description: 'Current' },
 			{ url: 'https://api.tempo.xyz', description: 'Production' },
@@ -27,7 +51,26 @@ const getScalarConfig = (baseUrl: string) =>
 				},
 			},
 		],
-	}) satisfies Parameters<typeof createApiReference>[number]
+		showSidebar: false,
+
+		hiddenClients: {
+			c: true,
+			clojure: true,
+			csharp: true,
+			dart: true,
+			fsharp: true,
+			js: ['axios', 'jquery', 'xhr'],
+			node: true,
+			kotlin: true,
+			objc: true,
+			ocaml: true,
+			r: true,
+			swift: true,
+		},
+		layout: 'modern',
+		telemetry: false,
+		persistAuth: false,
+	}) satisfies Partial<ApiReferenceConfigurationWithMultipleSources>
 
 export const Docs = (props: { baseUrl: string }) => {
 	const scalarConfig = getScalarConfig(props.baseUrl)

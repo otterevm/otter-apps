@@ -1,25 +1,15 @@
 import { Hono } from 'hono'
-import * as IDX from 'idxs'
 import * as z from 'zod/mini'
 import { zValidator } from '@hono/zod-validator'
 import { getPublicClient } from 'wagmi/actions'
 import { Abis, Addresses } from 'viem/tempo'
-import {
-	formatUnits,
-	getAddress,
-	keccak256,
-	concat,
-	type Address,
-	type Hex,
-} from 'viem'
+import { formatUnits, getAddress, keccak256, concat, type Address, type Hex } from 'viem'
 
 import { wagmiConfig } from '#wagmi.config.ts'
-import { toUnixTimestamp, computePriceNative } from '#gecko.utils.ts'
+import { idxClient } from '#utilities/indexer.ts'
+import { toUnixTimestamp, computePriceNative } from '#utilities/format.ts'
 
-const indexer = IDX.IndexSupply.create({
-	apiKey: process.env.INDEX_SUPPLY_API_KEY,
-})
-const QB = IDX.QueryBuilder.from(indexer)
+const { queryBuilder } = idxClient()
 
 const ORDER_PLACED_SIGNATURE =
 	'event OrderPlaced(uint128 indexed orderId, address indexed maker, address indexed token, uint128 amount, bool isBid, int16 tick, bool isFlipOrder, int16 flipTick)'
@@ -27,8 +17,7 @@ const ORDER_PLACED_SIGNATURE =
 const ORDER_FILLED_SIGNATURE =
 	'event OrderFilled(uint128 indexed orderId, address indexed maker, address indexed taker, uint128 amountFilled, bool partialFill)'
 
-const TRANSFER_SIGNATURE =
-	'event Transfer(address indexed from, address indexed to, uint256 value)'
+const TRANSFER_SIGNATURE = 'event Transfer(address indexed from, address indexed to, uint256 value)'
 
 const PAIR_CREATED_SIGNATURE =
 	'event PairCreated(bytes32 indexed key, address indexed base, address indexed quote)'
@@ -54,16 +43,10 @@ const cache = {
 
 const DEFAULT_CHAIN_ID = 4217 as (typeof wagmiConfig.chains)[number]['id']
 
-type ChainId = (typeof wagmiConfig.chains)[number]['id']
-
-const validChainIds = new Set<number>(wagmiConfig.chains.map((c) => c.id))
-
-function parseChainId(raw: string | undefined): ChainId {
-	if (!raw) return DEFAULT_CHAIN_ID
-	const n = Number(raw)
-	if (!validChainIds.has(n)) throw new Error(`Invalid chainId: ${raw}`)
-	return n as ChainId
-}
+const zOptionalChainId = () =>
+	z.optional(
+		z.pipe(z.coerce.number(), z.union(wagmiConfig.chains.map((chain) => z.literal(chain.id)))),
+	)
 
 function validationError(
 	result: { success: boolean; error?: unknown },
@@ -73,9 +56,7 @@ function validationError(
 		return context.json(
 			{
 				error:
-					result.error &&
-					typeof result.error === 'object' &&
-					'issues' in result.error
+					result.error && typeof result.error === 'object' && 'issues' in result.error
 						? result.error
 						: String(result.error),
 			},
@@ -94,15 +75,20 @@ const geckoApp = new Hono<{ Bindings: Cloudflare.Env }>()
 // ---------------------------------------------------------------------------
 // GET /latest-block
 // ---------------------------------------------------------------------------
-geckoApp.get('/latest-block', async (context) => {
-	const id = parseChainId(context.req.param('chainId'))
+geckoApp.get(
+	'/latest-block',
+	zValidator('query', z.object({ chainId: zOptionalChainId() }), validationError),
+	async (context) => {
+		const { chainId } = context.req.valid('query')
+		const id = chainId ?? DEFAULT_CHAIN_ID
 
-	const block = await QB.selectFrom('blocks')
-		.select(['num', 'timestamp'])
-		.where('chain', '=', id)
-		.orderBy('num', 'desc')
-		.limit(1)
-		.executeTakeFirstOrThrow()
+		const block = await queryBuilder
+			.selectFrom('blocks')
+			.select(['num', 'timestamp'])
+			.where('chain', '=', id)
+			.orderBy('num', 'desc')
+			.limit(1)
+			.executeTakeFirstOrThrow()
 
 	return context.json({
 		block: {
@@ -117,15 +103,14 @@ geckoApp.get('/latest-block', async (context) => {
 // ---------------------------------------------------------------------------
 geckoApp.get(
 	'/asset',
-	zValidator('query', z.object({ id: z.string() }), validationError),
+	zValidator('query', z.object({ id: z.string(), chainId: zOptionalChainId() }), validationError),
 	async (context) => {
 		const { id } = context.req.valid('query')
 		const client = getClient(parseChainId(context.req.param('chainId')))
 		const address = id as Address
 
-		const read = (
-			functionName: 'name' | 'symbol' | 'decimals' | 'totalSupply',
-		) => client.readContract({ address, abi: Abis.tip20, functionName })
+		const read = (functionName: 'name' | 'symbol' | 'decimals' | 'totalSupply') =>
+			client.readContract({ address, abi: Abis.tip20, functionName })
 
 		const [name, symbol, decimals, totalSupply] = await Promise.all([
 			read('name'),
@@ -134,12 +119,7 @@ geckoApp.get(
 			read('totalSupply'),
 		]).catch(() => [null, null, null, null] as const)
 
-		if (
-			name === null ||
-			symbol === null ||
-			decimals === null ||
-			totalSupply === null
-		)
+		if (name === null || symbol === null || decimals === null || totalSupply === null)
 			return context.json({ error: 'Failed to read asset' }, 500)
 
 		const dec = Number(decimals)
@@ -161,7 +141,7 @@ geckoApp.get(
 // ---------------------------------------------------------------------------
 geckoApp.get(
 	'/pair',
-	zValidator('query', z.object({ id: z.string() }), validationError),
+	zValidator('query', z.object({ id: z.string(), chainId: zOptionalChainId() }), validationError),
 	async (context) => {
 		const { id } = context.req.valid('query')
 		const chainId = parseChainId(context.req.param('chainId'))
@@ -183,7 +163,8 @@ geckoApp.get(
 		const cid = chainId
 		let creation = cache.pairCreation.get(pairKey)
 		if (!creation) {
-			const row = await QB.withSignatures([PAIR_CREATED_SIGNATURE])
+			const row = await queryBuilder
+				.withSignatures([PAIR_CREATED_SIGNATURE])
 				.selectFrom('paircreated')
 				.select(['block_num', 'block_timestamp', 'tx_hash'])
 				.where('chain', '=', cid)
@@ -246,7 +227,8 @@ geckoApp.get(
 		}
 		const priceScale = cache.priceScale
 
-		const filledRows = await QB.withSignatures([ORDER_FILLED_SIGNATURE])
+		const filledRows = await queryBuilder
+			.withSignatures([ORDER_FILLED_SIGNATURE])
 			.selectFrom('orderfilled')
 			.select([
 				'orderId',
@@ -269,9 +251,7 @@ geckoApp.get(
 
 		if (filledRows.length === 0) return context.json({ events: [] })
 
-		const uniqueOrderIds = [
-			...new Set(filledRows.map((r) => BigInt(r.orderId))),
-		]
+		const uniqueOrderIds = [...new Set(filledRows.map((r) => BigInt(r.orderId)))]
 		type Order = {
 			orderId: bigint
 			maker: Address
@@ -314,19 +294,16 @@ geckoApp.get(
 		}
 
 		if (missingOrderIds.length > 0) {
-			const rows = await QB.withSignatures([ORDER_PLACED_SIGNATURE])
+			const rows = await queryBuilder
+				.withSignatures([ORDER_PLACED_SIGNATURE])
 				.selectFrom('orderplaced')
 				.select(['orderId', 'maker', 'token', 'amount', 'isBid', 'tick'])
 				.where('chain', '=', cid)
 				.where('orderId', 'in', missingOrderIds)
 				.execute()
 
-			const uniqueBaseTokens = [
-				...new Set(rows.map((r) => (r.token as string).toLowerCase())),
-			]
-			const uncachedBaseTokens = uniqueBaseTokens.filter(
-				(t) => !cache.quoteTokens.has(t),
-			)
+			const uniqueBaseTokens = [...new Set(rows.map((r) => (r.token as string).toLowerCase()))]
+			const uncachedBaseTokens = uniqueBaseTokens.filter((t) => !cache.quoteTokens.has(t))
 			if (uncachedBaseTokens.length > 0) {
 				const quoteResults = await Promise.all(
 					uncachedBaseTokens.map((token) =>
@@ -348,9 +325,7 @@ geckoApp.get(
 				const base = String(row.token).toLowerCase() as Address
 				const quote = cache.quoteTokens.get(base)
 				if (!quote) continue
-				const bookKey = keccak256(
-					concat([base as Hex, quote.toLowerCase() as Hex]),
-				)
+				const bookKey = keccak256(concat([base as Hex, quote.toLowerCase() as Hex]))
 				orderMap.set(String(row.orderId), {
 					orderId: BigInt(row.orderId),
 					maker: String(row.maker) as Address,
@@ -406,8 +381,7 @@ geckoApp.get(
 		for (let i = 0; i < uncachedTicks.length; i++) {
 			const res = tickResults[i]
 			const tick = uncachedTicks[i]
-			if (res !== undefined && tick !== undefined)
-				cache.tickPrices.set(tick, BigInt(res))
+			if (res !== undefined && tick !== undefined) cache.tickPrices.set(tick, BigInt(res))
 		}
 
 		const tokenSet = new Set<Address>()
@@ -420,72 +394,62 @@ geckoApp.get(
 		}
 		const uniqueTokens = [...tokenSet]
 
-		const uncachedTokens = uniqueTokens.filter(
-			(t) => !cache.decimals.has(t.toLowerCase()),
-		)
+		const uncachedTokens = uniqueTokens.filter((t) => !cache.decimals.has(t.toLowerCase()))
 
-		const uniqueBlockNumbers = [
-			...new Set(filledRows.map((r) => BigInt(r.block_num))),
-		]
+		const uniqueBlockNumbers = [...new Set(filledRows.map((r) => BigInt(r.block_num)))]
 		const minBlock = uniqueBlockNumbers.reduce((a, b) => (a < b ? a : b))
 
-		const transferQB = QB.withSignatures([TRANSFER_SIGNATURE])
+		const transferQB = queryBuilder.withSignatures([TRANSFER_SIGNATURE])
 
-		const uniqueTxHashes = [
-			...new Set(filledRows.map((r) => String(r.tx_hash) as Hex)),
-		]
+		const uniqueTxHashes = [...new Set(filledRows.map((r) => String(r.tx_hash) as Hex))]
 
-		const [
-			decimalResults,
-			transfersTo,
-			transfersFrom,
-			initialResults,
-			txIdxRows,
-		] = await Promise.all([
-			Promise.all(
-				uncachedTokens.map((token) =>
-					client.readContract({
-						address: token,
-						abi: Abis.tip20,
-						functionName: 'decimals',
-					}),
+		const [decimalResults, transfersTo, transfersFrom, initialResults, txIdxRows] =
+			await Promise.all([
+				Promise.all(
+					uncachedTokens.map((token) =>
+						client.readContract({
+							address: token,
+							abi: Abis.tip20,
+							functionName: 'decimals',
+						}),
+					),
 				),
-			),
-			transferQB
-				.selectFrom('transfer')
-				.select(['from', 'to', 'value', 'address', 'block_num'])
-				.where('chain', '=', cid)
-				.where('to', '=', DEX_ADDRESS)
-				.where('address', 'in', uniqueTokens)
-				.where('block_num', '>=', minBlock)
-				.where('block_num', '<=', BigInt(toBlock))
-				.execute(),
-			transferQB
-				.selectFrom('transfer')
-				.select(['from', 'to', 'value', 'address', 'block_num'])
-				.where('chain', '=', cid)
-				.where('from', '=', DEX_ADDRESS)
-				.where('address', 'in', uniqueTokens)
-				.where('block_num', '>=', minBlock)
-				.where('block_num', '<=', BigInt(toBlock))
-				.execute(),
-			Promise.allSettled(
-				uniqueTokens.map((token) =>
-					client.readContract({
-						address: token,
-						abi: Abis.tip20,
-						functionName: 'balanceOf',
-						args: [DEX_ADDRESS],
-						blockNumber: minBlock > 0n ? minBlock - 1n : 0n,
-					}),
+				transferQB
+					.selectFrom('transfer')
+					.select(['from', 'to', 'value', 'address', 'block_num'])
+					.where('chain', '=', cid)
+					.where('to', '=', DEX_ADDRESS)
+					.where('address', 'in', uniqueTokens)
+					.where('block_num', '>=', minBlock)
+					.where('block_num', '<=', BigInt(toBlock))
+					.execute(),
+				transferQB
+					.selectFrom('transfer')
+					.select(['from', 'to', 'value', 'address', 'block_num'])
+					.where('chain', '=', cid)
+					.where('from', '=', DEX_ADDRESS)
+					.where('address', 'in', uniqueTokens)
+					.where('block_num', '>=', minBlock)
+					.where('block_num', '<=', BigInt(toBlock))
+					.execute(),
+				Promise.allSettled(
+					uniqueTokens.map((token) =>
+						client.readContract({
+							address: token,
+							abi: Abis.tip20,
+							functionName: 'balanceOf',
+							args: [DEX_ADDRESS],
+							blockNumber: minBlock > 0n ? minBlock - 1n : 0n,
+						}),
+					),
 				),
-			),
-			QB.selectFrom('txs')
-				.select(['hash', 'idx'])
-				.where('chain', '=', cid)
-				.where('hash', 'in', uniqueTxHashes)
-				.execute(),
-		])
+				queryBuilder
+					.selectFrom('txs')
+					.select(['hash', 'idx'])
+					.where('chain', '=', cid)
+					.where('hash', 'in', uniqueTxHashes)
+					.execute(),
+			])
 
 		const txIdxMap = new Map<string, number>()
 		for (const row of txIdxRows) {
@@ -495,8 +459,7 @@ geckoApp.get(
 		for (let i = 0; i < uncachedTokens.length; i++) {
 			const res = decimalResults[i]
 			const token = uncachedTokens[i]
-			if (res !== undefined && token)
-				cache.decimals.set(token.toLowerCase(), Number(res))
+			if (res !== undefined && token) cache.decimals.set(token.toLowerCase(), Number(res))
 		}
 
 		const initialBalances = new Map<string, bigint>()
@@ -506,10 +469,7 @@ geckoApp.get(
 			if (token)
 				// Falls back to 0 when balanceOf reverts — e.g. the token didn't
 				// exist prior to the queried block range (minBlock - 1).
-				initialBalances.set(
-					token.toLowerCase(),
-					res?.status === 'fulfilled' ? res.value : 0n,
-				)
+				initialBalances.set(token.toLowerCase(), res?.status === 'fulfilled' ? res.value : 0n)
 		}
 
 		type Delta = { block: bigint; token: string; delta: bigint }
@@ -535,10 +495,7 @@ geckoApp.get(
 		const blockReserveMap = new Map<bigint, Map<string, bigint>>()
 		const running = new Map<string, bigint>()
 		for (const token of uniqueTokens) {
-			running.set(
-				token.toLowerCase(),
-				initialBalances.get(token.toLowerCase()) ?? 0n,
-			)
+			running.set(token.toLowerCase(), initialBalances.get(token.toLowerCase()) ?? 0n)
 		}
 
 		const sortedBlocks = [...uniqueBlockNumbers].sort((a, b) => Number(a - b))
@@ -622,12 +579,7 @@ geckoApp.get(
 			const baseReserve = blockReserves?.get(book.base.toLowerCase()) ?? 0n
 			const quoteReserve = blockReserves?.get(book.quote.toLowerCase()) ?? 0n
 
-			const priceNative = computePriceNative(
-				tickPrice,
-				baseDecimals,
-				quoteDecimals,
-				scale,
-			)
+			const priceNative = computePriceNative(tickPrice, baseDecimals, quoteDecimals, scale)
 			if (tickPrice === 0n) continue
 
 			const txnIndex = txIdxMap.get(txHash.toLowerCase())
