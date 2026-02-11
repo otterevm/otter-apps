@@ -21,7 +21,9 @@ app
 	.get('/', (context) => context.redirect('/docs'))
 	.get('/schema/openapi', (context) => context.json(OpenAPISpec))
 	.get('/schema/openapi.json', (context) => context.json(OpenAPISpec))
-	.get('/docs', (context) => context.html(<Docs baseUrl={new URL(context.req.url).origin} />))
+	.get('/docs', (context) =>
+		context.html(<Docs baseUrl={new URL(context.req.url).origin} />),
+	)
 	.get('/version', (context) =>
 		context.json({
 			timestamp: Date.now(),
@@ -38,13 +40,15 @@ app.use(
 		// query param auth (?key=<token>)
 		async (context, next) => {
 			const key = context.req.query('key')
-			if (key !== process.env.API_KEY) throw new HTTPException(401, { message: 'Unauthorized' })
+			if (key !== process.env.API_KEY)
+				throw new HTTPException(401, { message: 'Unauthorized' })
 			return await next()
 		},
 		// header auth (X-Tempo-API-Key: <token>)
 		async (context, next) => {
 			const key = context.req.header('X-Tempo-API-Key')
-			if (key !== process.env.API_KEY) throw new HTTPException(401, { message: 'Unauthorized' })
+			if (key !== process.env.API_KEY)
+				throw new HTTPException(401, { message: 'Unauthorized' })
 			return await next()
 		},
 	),

@@ -8,11 +8,17 @@ import { zValidator } from '@hono/zod-validator'
 import { HTTPException } from 'hono/http-exception'
 
 import { idxClient } from '#utilities/indexer.ts'
-import { supportedChainIds, wagmiConfig, zAddress, zChainId } from '#wagmi.config.ts'
+import {
+	supportedChainIds,
+	wagmiConfig,
+	zAddress,
+	zChainId,
+} from '#wagmi.config.ts'
 
 const { queryBuilder } = idxClient()
 
-const TRANSFER_SIGNATURE = 'event Transfer(address indexed from, address indexed to, uint256 value)'
+const TRANSFER_SIGNATURE =
+	'event Transfer(address indexed from, address indexed to, uint256 value)'
 const APPROVAL_SIGNATURE =
 	'event Approval(address indexed owner, address indexed spender, uint256 value)'
 
@@ -25,7 +31,9 @@ function validationError(
 			{
 				message: 'Invalid query parameters',
 				error:
-					result.error && typeof result.error === 'object' && 'issues' in result.error
+					result.error &&
+					typeof result.error === 'object' &&
+					'issues' in result.error
 						? result.error
 						: String(result.error),
 			},
@@ -33,7 +41,8 @@ function validationError(
 		)
 }
 
-const zOptionalLimit = (defaultLimit = 20) => z.prefault(z.coerce.number(), defaultLimit)
+const zOptionalLimit = (defaultLimit = 20) =>
+	z.prefault(z.coerce.number(), defaultLimit)
 
 async function isIndexSupplyAvailable(chainId: number): Promise<boolean> {
 	try {
@@ -147,7 +156,11 @@ tokensApp.use(
 
 tokensApp.get(
 	'/:chainId/:address/holders',
-	zValidator('param', z.object({ chainId: zChainId(), address: zAddress() }), validationError),
+	zValidator(
+		'param',
+		z.object({ chainId: zChainId(), address: zAddress() }),
+		validationError,
+	),
 	zValidator('query', z.object({ limit: zOptionalLimit() }), validationError),
 	async (context) => {
 		const { chainId, address } = context.req.valid('param')
@@ -161,7 +174,10 @@ tokensApp.get(
 			}),
 		])
 
-		const decimals = decimalsResult[0]?.status === 'success' ? Number(decimalsResult[0].result) : 6
+		const decimals =
+			decimalsResult[0]?.status === 'success'
+				? Number(decimalsResult[0].result)
+				: 6
 
 		const holdersToCheck = tokenHolders.holders.slice(0, limit)
 
@@ -179,7 +195,8 @@ tokensApp.get(
 		const holdersWithBalances = holdersToCheck
 			.map((holder, i) => {
 				const result = balanceResults[i]
-				const balance = result?.status === 'success' ? (result.result as bigint) : 0n
+				const balance =
+					result?.status === 'success' ? (result.result as bigint) : 0n
 				return { address: holder, balance: balance.toString(), decimals }
 			})
 			.filter((h) => h.balance !== '0')
@@ -199,7 +216,11 @@ tokensApp.get(
 
 tokensApp.get(
 	'/:chainId/:address/allowances',
-	zValidator('param', z.object({ chainId: zChainId(), address: zAddress() }), validationError),
+	zValidator(
+		'param',
+		z.object({ chainId: zChainId(), address: zAddress() }),
+		validationError,
+	),
 	zValidator('query', z.object({ limit: zOptionalLimit() }), validationError),
 	async (context) => {
 		const { chainId, address } = context.req.valid('param')

@@ -1,8 +1,9 @@
 interface Env {
 	readonly PORT: string
 
-	readonly TEMPO_MAINNET_RPC_URL: string
+	readonly DEFILLAMA_API_KEY: string
 	readonly INDEX_SUPPLY_API_KEY: string
+	readonly TEMPO_MAINNET_RPC_URL: string
 }
 
 declare namespace NodeJS {

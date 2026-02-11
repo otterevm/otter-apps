@@ -37,7 +37,7 @@
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/workers-types": "catalog:",
 		"@scalar/api-reference": "^1.44.15",
-    "@scalar/types": "^0.6.2",
+		"@scalar/types": "^0.6.2",
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"idxs": "catalog:",

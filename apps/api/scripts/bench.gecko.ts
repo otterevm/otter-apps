@@ -131,8 +131,14 @@ function recordTiming(endpoint: EndpointKey, ms: number) {
 }
 
 function printLatencyStats() {
-	const totalRequests = Object.values(endpointStats).reduce((s, e) => s + e.count, 0)
-	const totalMs = Object.values(endpointStats).reduce((s, e) => s + e.totalMs, 0)
+	const totalRequests = Object.values(endpointStats).reduce(
+		(s, e) => s + e.count,
+		0,
+	)
+	const totalMs = Object.values(endpointStats).reduce(
+		(s, e) => s + e.totalMs,
+		0,
+	)
 	console.log(`\n  \x1b[1mLatency by endpoint:\x1b[0m`)
 	for (const [name, s] of Object.entries(endpointStats)) {
 		if (s.count === 0) continue
@@ -150,7 +156,10 @@ function printLatencyStats() {
 // Validators
 // ---------------------------------------------------------------------------
 function validateBlock(block: Block, label: string) {
-	assert(typeof block.blockNumber === 'number' && block.blockNumber > 0, `${label}.blockNumber > 0`)
+	assert(
+		typeof block.blockNumber === 'number' && block.blockNumber > 0,
+		`${label}.blockNumber > 0`,
+	)
 	assert(
 		typeof block.blockTimestamp === 'number' && block.blockTimestamp > 0,
 		`${label}.blockTimestamp > 0`,
@@ -162,9 +171,18 @@ function validateAsset(asset: Asset) {
 		typeof asset.id === 'string' && asset.id.startsWith('0x'),
 		'asset.id is checksummed address',
 	)
-	assert(typeof asset.name === 'string' && asset.name.length > 0, 'asset.name is non-empty')
-	assert(typeof asset.symbol === 'string' && asset.symbol.length > 0, 'asset.symbol is non-empty')
-	assert(typeof asset.decimals === 'number' && asset.decimals >= 0, 'asset.decimals >= 0')
+	assert(
+		typeof asset.name === 'string' && asset.name.length > 0,
+		'asset.name is non-empty',
+	)
+	assert(
+		typeof asset.symbol === 'string' && asset.symbol.length > 0,
+		'asset.symbol is non-empty',
+	)
+	assert(
+		typeof asset.decimals === 'number' && asset.decimals >= 0,
+		'asset.decimals >= 0',
+	)
 	if (asset.totalSupply !== undefined) {
 		const val = Number(asset.totalSupply)
 		assert(!Number.isNaN(val), 'asset.totalSupply is numeric')
@@ -172,8 +190,14 @@ function validateAsset(asset: Asset) {
 }
 
 function validatePair(pair: Pair) {
-	assert(typeof pair.id === 'string' && pair.id.length > 0, 'pair.id is non-empty')
-	assert(typeof pair.dexKey === 'string' && pair.dexKey.length > 0, 'pair.dexKey is non-empty')
+	assert(
+		typeof pair.id === 'string' && pair.id.length > 0,
+		'pair.id is non-empty',
+	)
+	assert(
+		typeof pair.dexKey === 'string' && pair.dexKey.length > 0,
+		'pair.dexKey is non-empty',
+	)
 	assert(
 		typeof pair.asset0Id === 'string' && pair.asset0Id.startsWith('0x'),
 		'pair.asset0Id is address',
@@ -187,10 +211,16 @@ function validatePair(pair: Pair) {
 function validateSwapEvent(event: SwapEvent) {
 	validateBlock(event.block, 'event.block')
 	assert(event.eventType === 'swap', 'eventType === "swap"')
-	assert(typeof event.txnId === 'string' && event.txnId.startsWith('0x'), 'txnId is hex')
+	assert(
+		typeof event.txnId === 'string' && event.txnId.startsWith('0x'),
+		'txnId is hex',
+	)
 	assert(typeof event.txnIndex === 'number', 'txnIndex is number')
 	assert(typeof event.eventIndex === 'number', 'eventIndex is number')
-	assert(typeof event.maker === 'string' && event.maker.startsWith('0x'), 'maker is address')
+	assert(
+		typeof event.maker === 'string' && event.maker.startsWith('0x'),
+		'maker is address',
+	)
 	assert(typeof event.pairId === 'string', 'pairId is string')
 
 	const hasIn = event.asset0In !== undefined || event.asset1In !== undefined
@@ -198,7 +228,10 @@ function validateSwapEvent(event: SwapEvent) {
 	assert(hasIn && hasOut, 'has at least one assetIn and one assetOut')
 
 	const price = Number(event.priceNative)
-	assert(!Number.isNaN(price) && price > 0, `priceNative > 0 (got ${event.priceNative})`)
+	assert(
+		!Number.isNaN(price) && price > 0,
+		`priceNative > 0 (got ${event.priceNative})`,
+	)
 
 	assert(event.reserves !== undefined, 'reserves present')
 	assert(Number(event.reserves.asset0) >= 0, 'reserves.asset0 >= 0')
@@ -212,7 +245,8 @@ function validateEventOrdering(events: SwapEvent[]) {
 		if (!prev || !curr) continue
 		const ordered =
 			curr.block.blockNumber > prev.block.blockNumber ||
-			(curr.block.blockNumber === prev.block.blockNumber && curr.txnIndex > prev.txnIndex) ||
+			(curr.block.blockNumber === prev.block.blockNumber &&
+				curr.txnIndex > prev.txnIndex) ||
 			(curr.block.blockNumber === prev.block.blockNumber &&
 				curr.txnIndex === prev.txnIndex &&
 				curr.eventIndex > prev.eventIndex)
@@ -253,7 +287,8 @@ async function runOnce(
 	const latestBlock = latestBlockRes.block.blockNumber
 
 	// Step 2: GET /gecko/events?fromBlock=&toBlock=
-	const fromBlock = lastSyncedBlock > 0 ? lastSyncedBlock : Math.max(1, latestBlock - LOOKBACK)
+	const fromBlock =
+		lastSyncedBlock > 0 ? lastSyncedBlock : Math.max(1, latestBlock - LOOKBACK)
 	const toBlock = latestBlock
 
 	console.log(
@@ -276,7 +311,9 @@ async function runOnce(
 		const first = eventsRes.events[0]
 		const last = eventsRes.events.at(-1)
 		if (first && last) {
-			console.log(`  blocks: ${first.block.blockNumber}..${last.block.blockNumber}`)
+			console.log(
+				`  blocks: ${first.block.blockNumber}..${last.block.blockNumber}`,
+			)
 			console.log(`  sample priceNative: ${first.priceNative}`)
 		}
 	} else {
@@ -331,13 +368,19 @@ async function main() {
 		iteration++
 		if (CONTINUOUS) {
 			console.log(`\n${'='.repeat(60)}`)
-			console.log(`Iteration ${iteration} | last synced: ${lastSyncedBlock || '(initial)'}`)
+			console.log(
+				`Iteration ${iteration} | last synced: ${lastSyncedBlock || '(initial)'}`,
+			)
 			console.log(`${'='.repeat(60)}`)
 		}
 
 		const timerLabel = `iteration ${iteration}`
 		console.time(timerLabel)
-		const { latestBlock, pairIds, assetIds } = await runOnce(lastSyncedBlock, seenPairs, seenAssets)
+		const { latestBlock, pairIds, assetIds } = await runOnce(
+			lastSyncedBlock,
+			seenPairs,
+			seenAssets,
+		)
 		console.timeEnd(timerLabel)
 
 		for (const p of pairIds) seenPairs.add(p)
@@ -359,7 +402,9 @@ async function main() {
 				try {
 					await run()
 				} catch (err) {
-					console.error(`\n\x1b[31mError:\x1b[0m ${err instanceof Error ? err.message : err}`)
+					console.error(
+						`\n\x1b[31mError:\x1b[0m ${err instanceof Error ? err.message : err}`,
+					)
 				}
 			}
 		}

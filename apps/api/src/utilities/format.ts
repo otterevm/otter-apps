@@ -1,6 +1,7 @@
 import { formatUnits } from 'viem'
 
-export const toUnixTimestamp = (value: unknown): number => new Date(String(value)).getTime() / 1_000
+export const toUnixTimestamp = (value: unknown): number =>
+	new Date(String(value)).getTime() / 1_000
 
 export function computePriceNative(
 	tickPrice: bigint,

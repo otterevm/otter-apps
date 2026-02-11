@@ -947,7 +947,13 @@
 			"TokenHoldersResponse": {
 				"type": "object",
 				"description": "Response containing token holders",
-				"required": ["chainId", "token_address", "block_height", "holders", "pagination"],
+				"required": [
+					"chainId",
+					"token_address",
+					"block_height",
+					"holders",
+					"pagination"
+				],
 				"properties": {
 					"chainId": {
 						"type": "integer",
@@ -1017,7 +1023,13 @@
 			"TokenAllowancesResponse": {
 				"type": "object",
 				"description": "Response containing token allowances",
-				"required": ["chainId", "token_address", "block_height", "allowances", "pagination"],
+				"required": [
+					"chainId",
+					"token_address",
+					"block_height",
+					"allowances",
+					"pagination"
+				],
 				"properties": {
 					"chainId": {
 						"type": "integer",

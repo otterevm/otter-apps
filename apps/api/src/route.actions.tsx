@@ -32,7 +32,10 @@ actionsApp.on(
 		}),
 		(result, context) => {
 			if (!result.success)
-				return context.json({ data: null, error: z.prettifyError(result.error) }, 400)
+				return context.json(
+					{ data: null, error: z.prettifyError(result.error) },
+					400,
+				)
 		},
 	),
 	async (context) => {
