@@ -51,8 +51,6 @@ const getScalarConfig = (baseUrl: string) =>
 				},
 			},
 		],
-		showSidebar: false,
-
 		hiddenClients: {
 			c: true,
 			clojure: true,
