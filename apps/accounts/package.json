@@ -1,0 +1,35 @@
+{
+	"name": "accounts",
+	"private": true,
+	"scripts": {
+		"build": "echo 'noop'",
+		"check": "pnpm check:biome && pnpm check:types",
+		"check:biome": "biome check --write .",
+		"check:types": "tsgo --project tsconfig.json --noEmit",
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"deploy:production": "wrangler deploy --env production",
+		"gen:types": "test -f .env || cp .env.example .env; CLOUDFLARE_ENV= wrangler types",
+		"test": "vitest --run",
+		"test:watch": "vitest",
+		"db:push": "CLOUDFLARE_D1_ENVIRONMENT='remote' drizzle-kit push --config='drizzle.config.ts'",
+		"db:studio": "drizzle-kit studio --config='drizzle.config.ts'"
+	},
+	"dependencies": {
+		"@hono/zod-validator": "catalog:",
+		"drizzle-orm": "^0.45.1",
+		"hono": "catalog:",
+		"nanoid": "^5.1.6",
+		"ox": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"@types/node": "catalog:",
+		"drizzle-kit": "^0.31.8",
+		"typescript": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

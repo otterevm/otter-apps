@@ -562,7 +562,16 @@
 			},
 			"PairWithLiquidity": {
 				"type": "object",
-				"required": ["id", "dexKey", "asset0Id", "asset1Id", "reserves", "createdAtBlockNumber", "createdAtBlockTimestamp", "createdAtTxnId"],
+				"required": [
+					"id",
+					"dexKey",
+					"asset0Id",
+					"asset1Id",
+					"reserves",
+					"createdAtBlockNumber",
+					"createdAtBlockTimestamp",
+					"createdAtTxnId"
+				],
 				"properties": {
 					"id": {
 						"type": "string",
