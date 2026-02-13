@@ -13,7 +13,10 @@ import tokensIndex42431 from '#data/tokens-index-42431.json' with {
 }
 import tokensIndex4217 from '#data/tokens-index-4217.json' with { type: 'json' }
 import { isTip20Address } from '#lib/domain/tip20'
-import { fetchTransactionTimestamp } from '#lib/server/tempo-queries'
+import {
+	fetchLatestBlockNumber,
+	fetchTransactionTimestamp,
+} from '#lib/server/tempo-queries'
 import { getWagmiConfig } from '#wagmi.config.ts'
 
 export type SearchResult =
@@ -34,6 +37,10 @@ export type SearchResult =
 			hash: Hex.Hex
 			timestamp?: number
 	  }
+	| {
+			type: 'block'
+			blockNumber: number
+	  }
 
 export type SearchApiResponse = {
 	results: SearchResult[]
@@ -46,6 +53,7 @@ export type TransactionSearchResult = Extract<
 	SearchResult,
 	{ type: 'transaction' }
 >
+export type BlockSearchResult = Extract<SearchResult, { type: 'block' }>
 
 type Token = [address: Address.Address, symbol: string, name: string]
 
@@ -132,6 +140,25 @@ export const Route = createFileRoute('/api/search')({
 
 				const chainId = getChainId(getWagmiConfig())
 				const results: SearchResult[] = []
+
+				// block number (plain digits or #-prefixed)
+				const blockQuery = query.startsWith('#') ? query.slice(1).trim() : query
+				const blockNumber = /^\d+$/.test(blockQuery)
+					? Number(blockQuery)
+					: Number.NaN
+				if (
+					Number.isFinite(blockNumber) &&
+					Number.isSafeInteger(blockNumber) &&
+					blockNumber >= 0
+				) {
+					try {
+						const latestBlock = await fetchLatestBlockNumber(chainId)
+						if (blockNumber <= Number(latestBlock))
+							results.push({ type: 'block', blockNumber })
+					} catch {
+						// index unavailable — skip block result
+					}
+				}
 
 				// address
 				if (Address.validate(query))
