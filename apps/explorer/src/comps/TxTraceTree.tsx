@@ -11,9 +11,14 @@ import {
 	precompileRegistry,
 } from '#lib/domain/contracts'
 import { decodePrecompile } from '#lib/domain/precompiles'
+import { isTip20Address } from '#lib/domain/tip20'
 import { useCopy } from '#lib/hooks'
 import type { CallTrace } from '#lib/queries'
-import { batchAbiQueryOptions, populateCacheFromBatch } from '#lib/queries'
+import {
+	batchAbiQueryOptions,
+	batchTip20MetadataQueryOptions,
+	populateCacheFromBatch,
+} from '#lib/queries'
 import ArrowRightIcon from '~icons/lucide/arrow-right'
 import CopyIcon from '~icons/lucide/copy'
 import WrapIcon from '~icons/lucide/corner-down-left'
@@ -79,14 +84,24 @@ export function TxTraceTree(props: TxTraceTree.Props) {
 }
 
 function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
-	const { addresses, selectors } = useMemo(() => {
+	const { addresses, selectors, tip20Addresses } = useMemo(() => {
 		if (!trace)
-			return { addresses: [] as `0x${string}`[], selectors: [] as Hex[] }
+			return {
+				addresses: [] as `0x${string}`[],
+				selectors: [] as Hex[],
+				tip20Addresses: [] as `0x${string}`[],
+			}
 		const addresses = new Set<`0x${string}`>()
 		const selectors = new Set<Hex>()
+		const tip20Addresses = new Set<`0x${string}`>()
 		const stack = [trace]
 		for (const trace of stack) {
-			if (trace.to) addresses.add(trace.to as `0x${string}`)
+			if (trace.to) {
+				addresses.add(trace.to as `0x${string}`)
+				if (isTip20Address(trace.to)) {
+					tip20Addresses.add(trace.to as `0x${string}`)
+				}
+			}
 			const hasSelector = trace.input && trace.input.length >= 10
 			if (hasSelector) selectors.add(slice(trace.input, 0, 4))
 			if (trace.calls) stack.push(...trace.calls)
@@ -94,6 +109,7 @@ function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
 		return {
 			addresses: Array.from(addresses),
 			selectors: Array.from(selectors),
+			tip20Addresses: Array.from(tip20Addresses),
 		}
 	}, [trace])
 
@@ -102,6 +118,11 @@ function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
 	// Single batch query instead of N+1 individual queries
 	const { data: batchData } = useQuery(
 		batchAbiQueryOptions({ addresses, selectors }),
+	)
+
+	// Fetch TIP-20 token metadata dynamically
+	const { data: tip20Metadata } = useQuery(
+		batchTip20MetadataQueryOptions({ addresses: tip20Addresses }),
 	)
 
 	// Populate individual caches for other components
@@ -133,6 +154,13 @@ function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
 			const precompileInfo = trace.to
 				? precompileRegistry.get(trace.to.toLowerCase() as `0x${string}`)
 				: undefined
+
+			// Use dynamically fetched TIP-20 metadata name if available
+			const tip20Meta = trace.to
+				? tip20Metadata?.get(trace.to.toLowerCase())
+				: undefined
+			const contractName =
+				precompileInfo?.name ?? tip20Meta?.name ?? contractInfo?.name
 
 			let functionName: string | undefined
 			let params: string | undefined
@@ -214,7 +242,7 @@ function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
 				hasInput: hasSelector,
 				hasOutput: Boolean(trace.output && trace.output !== '0x'),
 				hasError: Boolean(trace.error || trace.revertReason),
-				contractName: precompileInfo?.name ?? contractInfo?.name,
+				contractName,
 				functionName,
 				params,
 				decodedOutput,
@@ -223,7 +251,7 @@ function useTraceTree(trace: CallTrace | null): TxTraceTree.Node | null {
 		}
 
 		return buildNode(trace)
-	}, [trace, batchData])
+	}, [trace, batchData, tip20Metadata])
 }
 
 export namespace TxTraceTree {

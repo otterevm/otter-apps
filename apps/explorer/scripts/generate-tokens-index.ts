@@ -9,8 +9,14 @@ type SupportedChain = (typeof SUPPORTED_CHAINS)[number]
 
 type Token = [address: string, symbol: string, name: string]
 
+// Note: Token names are fetched dynamically from contracts at runtime
+// These are placeholder entries for the index - actual names come from chain
 const NATIVE_TOKENS: Token[] = [
-	['0x20c0000000000000000000000000000000000000', 'pathUSD', 'pathUSD'],
+	[
+		'0x20c0000000000000000000000000000000000000',
+		'GenesisToken',
+		'Genesis Token',
+	],
 	['0x20c0000000000000000000000000000000000001', 'AlphaUSD', 'AlphaUSD'],
 	['0x20c0000000000000000000000000000000000002', 'BetaUSD', 'BetaUSD'],
 	['0x20c0000000000000000000000000000000000003', 'ThetaUSD', 'ThetaUSD'],

@@ -303,7 +303,8 @@ function RouteComponent() {
 }
 
 // Native token address (0x20c0...0000)
-const NATIVE_TOKEN_ADDRESS = '0x20c0000000000000000000000000000000000000' as OxAddress.Address
+const NATIVE_TOKEN_ADDRESS =
+	'0x20c0000000000000000000000000000000000000' as OxAddress.Address
 
 function OverviewSection(props: {
 	receipt: TransactionReceipt
@@ -324,14 +325,16 @@ function OverviewSection(props: {
 
 	const [chain] = useChains()
 	const { decimals } = chain.nativeCurrency
-	
+
 	// Fetch actual token symbol from contract
 	const [tokenSymbol, setTokenSymbol] = React.useState<string>('')
-	
+
 	React.useEffect(() => {
 		const fetchTokenMetadata = async () => {
 			try {
-				const config = await import('#wagmi.config').then(m => m.getWagmiConfig())
+				const config = await import('#wagmi.config').then((m) =>
+					m.getWagmiConfig(),
+				)
 				const metadata = await Actions.token.getMetadata(config, {
 					token: NATIVE_TOKEN_ADDRESS,
 				})

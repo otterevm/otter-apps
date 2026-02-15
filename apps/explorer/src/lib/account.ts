@@ -53,9 +53,10 @@ const taggedAccounts: Record<Address.Address, AccountTag> = {
 		label: 'Nonce Manager',
 	},
 	// genesis tip20 tokens
+	// Note: Token name is fetched dynamically from contract when needed
 	'0x20c0000000000000000000000000000000000000': {
-		id: 'genesis-token:pathusd',
-		label: 'pathUSD',
+		id: 'genesis-token:genesis',
+		label: 'GenesisToken',
 	},
 	'0x20c0000000000000000000000000000000000001': {
 		id: 'genesis-token:alphausd',

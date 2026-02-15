@@ -169,10 +169,11 @@ export const tip20ContractRegistry = new Map<Address.Address, ContractInfo>(<
 	const
 >[
 	// TIP-20 Tokens
+	// Note: Token name is fetched dynamically from chain via tip20MetadataQuery
 	[
 		'0x20c0000000000000000000000000000000000000',
 		{
-			name: 'pathUSD',
+			name: 'TIP-20 Token', // Placeholder - actual name fetched from contract
 			description: 'Non-transferable DEX accounting unit',
 			abi: Abis.tip20,
 			code: '0xef',
