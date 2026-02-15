@@ -150,18 +150,18 @@ function ConnectWalletInner({
 						switchChain.mutate({
 							chainId: chains[0].id,
 							addEthereumChainParameter: {
-								blockExplorerUrls: ['https://explore.tempo.xyz'],
+								blockExplorerUrls: ['https://explore.otterevm.com'],
 								nativeCurrency: { name: 'USD', decimals: 18, symbol: 'USD' },
 							},
 						})
 					}
 				>
-					Add Tempo to {connector?.name ?? 'Wallet'}
+					Add Otter to {connector?.name ?? 'Wallet'}
 				</Button>
 			)}
 			{switchChain.isSuccess && (
 				<span className="text-[12px] font-normal text-tertiary whitespace-nowrap">
-					Added Tempo to {connector?.name ?? 'Wallet'}!
+					Added Otter to {connector?.name ?? 'Wallet'}!
 				</span>
 			)}
 			<SignOut />

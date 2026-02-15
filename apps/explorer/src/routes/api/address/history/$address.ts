@@ -112,7 +112,8 @@ async function fetchHistoryViaRPC(): Promise<HistoryResponse> {
 		limit: DEFAULT_LIMIT,
 		hasMore: false,
 		countCapped: true,
-		error: 'Transaction history requires indexer. Available on mainnet/testnet only.',
+		error:
+			'Transaction history requires indexer. Available on mainnet/testnet only.',
 	}
 }
 

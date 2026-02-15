@@ -15,7 +15,8 @@ const TIP20_DECIMALS = 6
 const MAX_TOKENS = 50
 
 // pathUSD token address (native gas token on Tempo/Otter)
-const PATHUSD_ADDRESS = '0x20c0000000000000000000000000000000000000' as Address.Address
+const PATHUSD_ADDRESS =
+	'0x20c0000000000000000000000000000000000000' as Address.Address
 
 export type TokenBalance = {
 	token: Address.Address
@@ -32,30 +33,34 @@ export type BalancesResponse = {
 }
 
 // Fallback: Get balance via RPC for chains without indexer
-async function fetchBalancesViaRPC(address: Address.Address): Promise<TokenBalance[]> {
+async function fetchBalancesViaRPC(
+	address: Address.Address,
+): Promise<TokenBalance[]> {
 	const config = getWagmiConfig()
-	
+
 	// Get pathUSD balance (native gas token)
 	try {
 		const balance = await Actions.token.getBalance(config as Config, {
 			token: PATHUSD_ADDRESS,
 			account: address,
 		})
-		
+
 		if (balance > 0n) {
-			return [{
-				token: PATHUSD_ADDRESS,
-				balance: balance.toString(),
-				name: 'PathUSD',
-				symbol: 'USD',
-				decimals: TIP20_DECIMALS,
-				currency: 'USD',
-			}]
+			return [
+				{
+					token: PATHUSD_ADDRESS,
+					balance: balance.toString(),
+					name: 'PathUSD',
+					symbol: 'USD',
+					decimals: TIP20_DECIMALS,
+					currency: 'USD',
+				},
+			]
 		}
 	} catch (error) {
 		console.warn('Failed to fetch pathUSD balance:', error)
 	}
-	
+
 	return []
 }
 

@@ -167,6 +167,41 @@
 					"invocation_logs": true
 				}
 			}
+		},
+		"ottertestnet": {
+			"name": "explorer-ottertestnet",
+			"routes": [
+				{
+					"custom_domain": true,
+					"zone_name": "tempo.xyz",
+					"pattern": "explore.7447.tempo.xyz"
+				},
+				{
+					"custom_domain": true,
+					"zone_name": "tempo.xyz",
+					"pattern": "explore.ottertestnet.tempo.xyz"
+				}
+			],
+			"vars": {
+				"VITE_TEMPO_ENV": "ottertestnet",
+				"VITE_SENTRY_DSN": "https://0f252c4cc335811d53f9e996b8a3450a@o4510262603481088.ingest.us.sentry.io/4510858114564096",
+				"SENTRY_TRACES_SAMPLE_RATE": "0.5",
+				"VITE_SENTRY_TRACES_SAMPLE_RATE": "0.5"
+			},
+			"version_metadata": {
+				"binding": "CF_VERSION_METADATA"
+			},
+			"workers_dev": true,
+			"browser": { "binding": "BROWSER" },
+			"observability": {
+				"enabled": true,
+				"logs": {
+					"persist": true,
+					"enabled": true,
+					"head_sampling_rate": 1,
+					"invocation_logs": true
+				}
+			}
 		}
 	},
 	"observability": {

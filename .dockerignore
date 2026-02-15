@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Git
+.git
+.github
+.gitignore
+.git-blame-ignore-revs
+.gitattributes
+
+# IDE
+.vscode
+.zed
+
+# Documentation
+*.md
+!README.md
+AGENTS.md
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Cache
+.cache
+.wrangler
+*.log
+
+# Build outputs (except the ones we need)
+# dist is needed for the build
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/test
+**/*.test.ts
+**/*.test.tsx
+
+# Scripts not needed for runtime
+scripts/
+
+# Other apps not needed
+apps/api/
+apps/contract-verification/
+apps/fee-payer/
+apps/key-manager/
+apps/og/
+apps/tokenlist/
+
+# Playground
+apps/fee-payer/playground/

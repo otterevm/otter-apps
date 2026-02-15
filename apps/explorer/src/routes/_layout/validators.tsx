@@ -23,7 +23,7 @@ function ValidatorName({ name }: { name?: string }) {
 export const Route = createFileRoute('/_layout/validators')({
 	component: ValidatorsPage,
 	head: () => ({
-		meta: [{ title: 'Validators – Tempo Explorer' }],
+		meta: [{ title: 'Validators – OtterEVM Explorer' }],
 	}),
 	loader: ({ context }) =>
 		withLoaderTiming('/_layout/validators', async () =>

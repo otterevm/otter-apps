@@ -1,118 +1,36 @@
 import { createIsomorphicFn, createServerFn } from '@tanstack/react-start'
 import { getRequestHeader } from '@tanstack/react-start/server'
-import { createPublicClient } from 'viem'
-import {
-	tempoDevnet,
-	tempoLocalnet,
-	tempoAndantino,
-	tempoModerato,
-} from 'viem/chains'
+import { createPublicClient, http } from 'viem'
+import { tempoLocalnet } from 'viem/chains'
 import { tempoActions } from 'viem/tempo'
-import { loadBalance, rateLimit } from '@tempo/rpc-utils'
-import { tempoPresto, tempoOtterTestnet } from './lib/chains'
+import { tempoOtterTestnet } from './lib/chains'
 import {
-        cookieStorage,
-        cookieToInitialState,
-        createConfig,
-        createStorage,
-        http,
-        serialize,
+	cookieStorage,
+	cookieToInitialState,
+	createConfig,
+	createStorage,
+	serialize,
 } from 'wagmi'
 import { KeyManager, webAuthn } from 'wagmi/tempo'
 
-const TEMPO_ENV = import.meta.env.VITE_TEMPO_ENV as string
+const OTTER_TESTNET_RPC = 'http://46.225.112.16:8545'
 
 export type WagmiConfig = ReturnType<typeof getWagmiConfig>
 let wagmiConfigSingleton: ReturnType<typeof createConfig> | null = null
 
+// Force Otter Testnet only
 export const getTempoChain = createIsomorphicFn()
-	.client(() =>
-		TEMPO_ENV === 'presto'
-			? tempoPresto
-			: TEMPO_ENV === 'devnet'
-				? tempoDevnet
-				: TEMPO_ENV === 'moderato'
-					? tempoModerato
-					: TEMPO_ENV === 'ottertestnet'
-						? tempoOtterTestnet
-						: tempoAndantino,
-	)
-	.server(() =>
-		TEMPO_ENV === 'presto'
-			? tempoPresto
-			: TEMPO_ENV === 'devnet'
-				? tempoDevnet
-				: TEMPO_ENV === 'moderato'
-					? tempoModerato
-					: TEMPO_ENV === 'ottertestnet'
-						? tempoOtterTestnet
-						: tempoAndantino,
-	)
+	.client(() => tempoOtterTestnet)
+	.server(() => tempoOtterTestnet)
 
-const RPC_PROXY_HOSTNAME = 'proxy.tempo.xyz'
-
-const OTTER_TESTNET_RPC = 'http://46.225.112.16:8545'
-
-const getRpcProxyUrl = createIsomorphicFn()
-	.client(() => {
-		const chain = getTempoChain()
-		// Use direct RPC for Otter Testnet (Chain ID 7447)
-		if (chain.id === 7447) return { http: OTTER_TESTNET_RPC }
-		return {
-			http: `https://${RPC_PROXY_HOSTNAME}/rpc/${chain.id}`,
-		}
-	})
-	.server(() => {
-		const chain = getTempoChain()
-		// Use direct RPC for Otter Testnet (Chain ID 7447)
-		if (chain.id === 7447) return { http: OTTER_TESTNET_RPC }
-		const key = process.env.TEMPO_RPC_KEY
-		const keyParam = key ? `?key=${key}` : ''
-		return {
-			http: `https://${RPC_PROXY_HOSTNAME}/rpc/${chain.id}${keyParam}`,
-		}
-	})
-
-const getFallbackUrls = createIsomorphicFn()
-	.client(() => {
-		const chain = getTempoChain()
-		return {
-			http: chain.rpcUrls.default.http,
-		}
-	})
-	.server(() => {
-		const chain = getTempoChain()
-		const key = process.env.TEMPO_RPC_KEY
-		return {
-			http: chain.rpcUrls.default.http.map((url) =>
-				key ? `${url}/${key}` : url,
-			),
-		}
-	})
-
-const getTempoTransport = createIsomorphicFn()
-        .client(() => {
-                const proxy = getRpcProxyUrl()
-                const fallbackUrls = getFallbackUrls()
-                const proxyTransport = rateLimit(http(proxy.http), {
-                        requestsPerSecond: 20,
-                })
-                const fallbackTransports = fallbackUrls.http.map((url) =>
-                        rateLimit(http(url), { requestsPerSecond: 10 }),
-                )
-
-                return loadBalance([proxyTransport, ...fallbackTransports])
-        })
-        .server(() => {
-                const proxy = getRpcProxyUrl()
-                const fallbackUrls = getFallbackUrls()
-                return loadBalance([http(proxy.http), ...fallbackUrls.http.map(http)])
-        })
+const getOtterTestnetTransport = createIsomorphicFn()
+	.client(() => http(OTTER_TESTNET_RPC))
+	.server(() => http(OTTER_TESTNET_RPC))
 
 export function getWagmiConfig() {
 	if (wagmiConfigSingleton) return wagmiConfigSingleton
 	const chain = getTempoChain()
-	const transport = getTempoTransport()
+	const transport = getOtterTestnetTransport()
 
 	wagmiConfigSingleton = createConfig({
 		ssr: true,
@@ -141,7 +59,7 @@ export const getWagmiStateSSR = createServerFn().handler(() => {
 // Batched HTTP client for bulk RPC operations
 export function getBatchedClient() {
 	const chain = getTempoChain()
-	const transport = getTempoTransport()
+	const transport = getOtterTestnetTransport()
 
 	return createPublicClient({ chain, transport }).extend(tempoActions())
 }

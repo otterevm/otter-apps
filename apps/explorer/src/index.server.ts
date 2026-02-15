@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/cloudflare'
 import handler, { createServerEntry } from '@tanstack/react-start/server-entry'
 
-export const RPC_AUTH_COOKIE = 'rpc_auth'
+const RPC_AUTH_COOKIE = 'rpc_auth'
 
 export const redirects: Array<{
 	from: RegExp

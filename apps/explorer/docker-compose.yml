@@ -1,0 +1,24 @@
+services:
+  explorer:
+    image: ghcr.io/otterevm/exp:latest
+    build:
+      context: ../..
+      dockerfile: apps/explorer/Dockerfile
+    container_name: otterevm-explorer
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - VITE_TEMPO_ENV=ottertestnet
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"

@@ -433,7 +433,7 @@ export const Route = createFileRoute('/_layout/address/$address')({
 				: accountType === 'account'
 					? 'Account'
 					: 'Address'
-		const title = `${label} ${HexFormatter.truncate(params.address as Hex.Hex)} ⋅ Tempo Explorer`
+		const title = `${label} ${HexFormatter.truncate(params.address as Hex.Hex)} ⋅ OtterEVM Explorer`
 
 		const txCount = 0
 
