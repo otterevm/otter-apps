@@ -13,6 +13,7 @@
 		"dev:andantino": "VITE_TEMPO_ENV='testnet' vite dev --port 3000",
 		"dev:moderato": "VITE_TEMPO_ENV='moderato' vite dev --port 3000",
 		"dev:presto": "VITE_TEMPO_ENV='presto' vite dev --port 3000",
+		"dev:ottertestnet": "VITE_TEMPO_ENV='ottertestnet' vite dev --port 3000",
 		"build": "vite build",
 		"bundle:analyze": "ANALYZE=true pnpm build && open .sonda/sonda_1.html",
 		"bundle:analyze:json": "ANALYZE_JSON=true pnpm build",

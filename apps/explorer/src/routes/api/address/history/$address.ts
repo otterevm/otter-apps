@@ -102,20 +102,29 @@ const RequestParametersSchema = z.object({
 	sources: z.optional(z.string()),
 })
 
+// Fallback: Return empty history for chains without indexer
+// Note: Full RPC-based history scanning is expensive and not implemented
+async function fetchHistoryViaRPC(): Promise<HistoryResponse> {
+	return {
+		transactions: [],
+		total: 0,
+		offset: 0,
+		limit: DEFAULT_LIMIT,
+		hasMore: false,
+		countCapped: true,
+		error: 'Transaction history requires indexer. Available on mainnet/testnet only.',
+	}
+}
+
 export const Route = createFileRoute('/api/address/history/$address')({
 	server: {
 		handlers: {
 			GET: async ({ params }) => {
-				if (!hasIndexSupply())
-					return Response.json({
-						limit: 0,
-						total: 0,
-						offset: 0,
-						hasMore: false,
-						countCapped: false,
-						transactions: [],
-						error: null,
-					} satisfies HistoryResponse)
+				// For chains without indexer (like ottertestnet), return empty with message
+				if (!hasIndexSupply()) {
+					const response = await fetchHistoryViaRPC()
+					return Response.json(response)
+				}
 
 				try {
 					const url = getRequestURL()

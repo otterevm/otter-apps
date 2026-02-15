@@ -9,7 +9,7 @@ import {
 } from 'viem/chains'
 import { tempoActions } from 'viem/tempo'
 import { loadBalance, rateLimit } from '@tempo/rpc-utils'
-import { tempoPresto } from './lib/chains'
+import { tempoPresto, tempoOtterTestnet } from './lib/chains'
 import {
         cookieStorage,
         cookieToInitialState,
@@ -20,7 +20,7 @@ import {
 } from 'wagmi'
 import { KeyManager, webAuthn } from 'wagmi/tempo'
 
-const TEMPO_ENV = import.meta.env.VITE_TEMPO_ENV
+const TEMPO_ENV = import.meta.env.VITE_TEMPO_ENV as string
 
 export type WagmiConfig = ReturnType<typeof getWagmiConfig>
 let wagmiConfigSingleton: ReturnType<typeof createConfig> | null = null
@@ -33,7 +33,9 @@ export const getTempoChain = createIsomorphicFn()
 				? tempoDevnet
 				: TEMPO_ENV === 'moderato'
 					? tempoModerato
-					: tempoAndantino,
+					: TEMPO_ENV === 'ottertestnet'
+						? tempoOtterTestnet
+						: tempoAndantino,
 	)
 	.server(() =>
 		TEMPO_ENV === 'presto'
@@ -42,20 +44,28 @@ export const getTempoChain = createIsomorphicFn()
 				? tempoDevnet
 				: TEMPO_ENV === 'moderato'
 					? tempoModerato
-					: tempoAndantino,
+					: TEMPO_ENV === 'ottertestnet'
+						? tempoOtterTestnet
+						: tempoAndantino,
 	)
 
 const RPC_PROXY_HOSTNAME = 'proxy.tempo.xyz'
 
+const OTTER_TESTNET_RPC = 'http://46.225.112.16:8545'
+
 const getRpcProxyUrl = createIsomorphicFn()
 	.client(() => {
 		const chain = getTempoChain()
+		// Use direct RPC for Otter Testnet (Chain ID 7447)
+		if (chain.id === 7447) return { http: OTTER_TESTNET_RPC }
 		return {
 			http: `https://${RPC_PROXY_HOSTNAME}/rpc/${chain.id}`,
 		}
 	})
 	.server(() => {
 		const chain = getTempoChain()
+		// Use direct RPC for Otter Testnet (Chain ID 7447)
+		if (chain.id === 7447) return { http: OTTER_TESTNET_RPC }
 		const key = process.env.TEMPO_RPC_KEY
 		const keyParam = key ? `?key=${key}` : ''
 		return {
