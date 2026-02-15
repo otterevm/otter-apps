@@ -586,8 +586,13 @@ function RouteComponent() {
 		if (isContract) {
 			tabs.push('contract', 'interact')
 		}
+		// TIP-20 genesis tokens (0x20c0...) are precompiles that should show contract tab
+		// even if bytecode detection fails (e.g., on chains without index supply)
+		if (isToken && address.toLowerCase().startsWith('0x20c0') && !tabs.includes('contract')) {
+			tabs.push('contract', 'interact')
+		}
 		return tabs
-	}, [isToken, isContract])
+	}, [isToken, isContract, address])
 
 	const setActiveSection = React.useCallback(
 		(newIndex: number) => {
