@@ -19,10 +19,15 @@ export const tempoPresto = {
 export const tempoOtterTestnet = {
 	...tempoModerato,
 	id: 7447,
-	name: 'Otter Testnet',
+	name: 'Pakxe',
+	nativeCurrency: {
+		name: 'Otter',
+		symbol: 'OTTER',
+		decimals: 6,
+	},
 	rpcUrls: {
 		default: {
-			http: ['http://46.225.112.16:8545'],
+			http: ['https://rpc.pakxe.otterevm.com/'],
 		},
 	},
 	blockExplorers: {

@@ -14,6 +14,7 @@ import * as React from 'react'
 import type { Log, TransactionReceipt } from 'viem'
 import { toEventSelector } from 'viem'
 import { useChains } from 'wagmi'
+import { Actions } from 'wagmi/tempo'
 import * as z from 'zod/mini'
 import { Address } from '#comps/Address'
 import { BreadcrumbsSlot } from '#comps/Breadcrumbs'
@@ -301,6 +302,9 @@ function RouteComponent() {
 	)
 }
 
+// Native token address (0x20c0...0000)
+const NATIVE_TOKEN_ADDRESS = '0x20c0000000000000000000000000000000000000' as OxAddress.Address
+
 function OverviewSection(props: {
 	receipt: TransactionReceipt
 	transaction: TxData['transaction']
@@ -319,7 +323,26 @@ function OverviewSection(props: {
 	} = props
 
 	const [chain] = useChains()
-	const { decimals, symbol } = chain.nativeCurrency
+	const { decimals } = chain.nativeCurrency
+	
+	// Fetch actual token symbol from contract
+	const [tokenSymbol, setTokenSymbol] = React.useState<string>('')
+	
+	React.useEffect(() => {
+		const fetchTokenMetadata = async () => {
+			try {
+				const config = await import('#wagmi.config').then(m => m.getWagmiConfig())
+				const metadata = await Actions.token.getMetadata(config, {
+					token: NATIVE_TOKEN_ADDRESS,
+				})
+				setTokenSymbol(metadata.symbol || '')
+			} catch {
+				// Fallback to empty string if fetch fails
+				setTokenSymbol('')
+			}
+		}
+		fetchTokenMetadata()
+	}, [])
 
 	const value = transaction.value ?? 0n
 	const gasUsed = receipt.gasUsed
@@ -373,7 +396,7 @@ function OverviewSection(props: {
 			)}
 			<InfoRow label="Value">
 				<span className="text-primary">
-					{Value.format(value, decimals)} {symbol}
+					{Value.format(value, decimals)} {tokenSymbol}
 				</span>
 			</InfoRow>
 			<InfoRow label="Transaction Fee">
@@ -406,7 +429,7 @@ function OverviewSection(props: {
 							receipt.effectiveGasPrice * receipt.gasUsed,
 							decimals,
 						)}{' '}
-						{symbol}
+						{tokenSymbol}
 					</span>
 				)}
 			</InfoRow>

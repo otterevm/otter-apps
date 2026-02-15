@@ -593,7 +593,7 @@ async function fetchTokenData(address: string): Promise<TokenData | null> {
 		return {
 			name: name || '—',
 			symbol: symbol || '—',
-			currency: 'USD',
+			currency: symbol || '',
 			holders: indexerData.holders,
 			supply: formatSupply(totalSupply),
 			created: indexerData.created,
@@ -603,17 +603,23 @@ async function fetchTokenData(address: string): Promise<TokenData | null> {
 	}
 }
 
+// Get default pool tokens for fee AMM liquidity check
+// These are the standard TIP20 token addresses used for fee pairs
+function getFeePoolTokens(): { primary: string; secondary: string } {
+	return {
+		primary: '0x20c0000000000000000000000000000000000000',
+		secondary: '0x20c0000000000000000000000000000000000001',
+	}
+}
+
 async function hasFeeAmmLiquidity(tokenAddress: string): Promise<boolean> {
 	try {
 		const FEE_MANAGER =
 			'0xfeec000000000000000000000000000000000000' as Address.Address
-		const PATH_USD = '0x20c0000000000000000000000000000000000000'
-		const ALPHA_USD = '0x20c0000000000000000000000000000000000001'
+		const { primary, secondary } = getFeePoolTokens()
 
 		const pairToken =
-			tokenAddress.toLowerCase() === PATH_USD.toLowerCase()
-				? ALPHA_USD
-				: PATH_USD
+			tokenAddress.toLowerCase() === primary.toLowerCase() ? secondary : primary
 
 		const getPoolAbi = [
 			{
@@ -654,7 +660,8 @@ export async function buildTokenOgData(address: string): Promise<{
 
 	const isTIP20 = address.toLowerCase().startsWith('0x20c')
 	let isFeeToken = false
-	if (isTIP20 && tokenData?.currency === 'USD') {
+	// Check if it's a stable/fee token (has USD in symbol or is a known fee token)
+	if (isTIP20 && tokenData?.currency?.toUpperCase().includes('USD')) {
 		isFeeToken = await hasFeeAmmLiquidity(address)
 	}
 

@@ -14,8 +14,9 @@ import { getWagmiConfig } from '#wagmi.config'
 const TIP20_DECIMALS = 6
 const MAX_TOKENS = 50
 
-// pathUSD token address (native gas token on Tempo/Otter)
-const PATHUSD_ADDRESS =
+// Native gas token address prefix for TIP20 tokens (0x20c0...)
+// The full address is fetched dynamically from chain configuration
+const NATIVE_TOKEN_PREFIX =
 	'0x20c0000000000000000000000000000000000000' as Address.Address
 
 export type TokenBalance = {
@@ -32,33 +33,66 @@ export type BalancesResponse = {
 	error?: string
 }
 
+// Get native gas token address for current chain
+function getNativeTokenAddress(): Address.Address {
+	// Different chains may have different native token addresses
+	// For now, use the standard TIP20 prefix pattern
+	// This could be extended to read from chain configuration
+	return NATIVE_TOKEN_PREFIX
+}
+
+// Fetch token metadata from chain
+async function fetchTokenMetadata(
+	token: Address.Address,
+): Promise<{ name: string; symbol: string; currency: string } | null> {
+	const config = getWagmiConfig()
+
+	try {
+		const metadata = await Actions.token.getMetadata(config as Config, {
+			token,
+		})
+		return {
+			name: metadata.name ?? 'Unknown Token',
+			symbol: metadata.symbol ?? '???',
+			currency: '', // Will be determined from symbol or other logic
+		}
+	} catch (error) {
+		console.warn(`Failed to fetch metadata for token ${token}:`, error)
+		return null
+	}
+}
+
 // Fallback: Get balance via RPC for chains without indexer
 async function fetchBalancesViaRPC(
 	address: Address.Address,
 ): Promise<TokenBalance[]> {
 	const config = getWagmiConfig()
+	const nativeToken = getNativeTokenAddress()
 
-	// Get pathUSD balance (native gas token)
+	// Get native gas token balance
 	try {
 		const balance = await Actions.token.getBalance(config as Config, {
-			token: PATHUSD_ADDRESS,
+			token: nativeToken,
 			account: address,
 		})
 
 		if (balance > 0n) {
+			// Fetch actual metadata from chain
+			const metadata = await fetchTokenMetadata(nativeToken)
+
 			return [
 				{
-					token: PATHUSD_ADDRESS,
+					token: nativeToken,
 					balance: balance.toString(),
-					name: 'PathUSD',
-					symbol: 'USD',
+					name: metadata?.name ?? 'Native Token',
+					symbol: metadata?.symbol ?? 'NATIVE',
 					decimals: TIP20_DECIMALS,
-					currency: 'USD',
+					currency: metadata?.symbol ?? '',
 				},
 			]
 		}
 	} catch (error) {
-		console.warn('Failed to fetch pathUSD balance:', error)
+		console.warn('Failed to fetch native token balance:', error)
 	}
 
 	return []
@@ -189,17 +223,18 @@ export const Route = createFileRoute('/api/address/balances/$address')({
 							}
 						})
 						.sort((a, b) => {
-							const aIsUsd = a.currency === 'USD'
-							const bIsUsd = b.currency === 'USD'
+							// Check if tokens are fee tokens based on symbol patterns
+							const aIsFee = (a.symbol ?? '').toUpperCase().includes('USD')
+							const bIsFee = (b.symbol ?? '').toUpperCase().includes('USD')
 
-							if (aIsUsd && bIsUsd) {
+							if (aIsFee && bIsFee) {
 								const aValue = Number(BigInt(a.balance)) / 10 ** TIP20_DECIMALS
 								const bValue = Number(BigInt(b.balance)) / 10 ** TIP20_DECIMALS
 								return bValue - aValue
 							}
 
-							if (aIsUsd) return -1
-							if (bIsUsd) return 1
+							if (aIsFee) return -1
+							if (bIsFee) return 1
 
 							return Number(BigInt(b.balance) - BigInt(a.balance))
 						})

@@ -13,7 +13,7 @@ import {
 } from 'wagmi'
 import { KeyManager, webAuthn } from 'wagmi/tempo'
 
-const OTTER_TESTNET_RPC = 'http://46.225.112.16:8545'
+const OTTER_TESTNET_RPC = 'https://rpc.pakxe.otterevm.com/'
 
 export type WagmiConfig = ReturnType<typeof getWagmiConfig>
 let wagmiConfigSingleton: ReturnType<typeof createConfig> | null = null
