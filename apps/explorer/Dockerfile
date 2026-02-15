@@ -38,6 +38,9 @@ RUN pnpm exec vite build
 # Stage 2: Production
 FROM node:20-slim AS runner
 
+# Install CA certificates for TLS connections
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Install wrangler
