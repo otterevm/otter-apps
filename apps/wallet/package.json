@@ -1,0 +1,50 @@
+{
+	"name": "wallet",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#*": "./src/*",
+		"#wagmi.config": "./src/wagmi.config.ts"
+	},
+	"scripts": {
+		"postinstall": "pnpm gen:types",
+		"dev": "vite dev --port 3003",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "pnpm check:biome && pnpm check:types",
+		"check:biome": "biome check --write --unsafe",
+		"check:types": "tsgo --project tsconfig.json --noEmit",
+		"gen:types": "test -f .env || cp .env.example .env; wrangler types",
+		"pages:deploy": "pnpm build && wrangler pages deploy dist"
+	},
+	"dependencies": {
+		"@tailwindcss/vite": "catalog:",
+		"@tanstack/react-query": "catalog:",
+		"@tanstack/react-router": "catalog:",
+		"@tempo/rpc-utils": "workspace:*",
+		"@types/qrcode": "catalog:",
+		"@wagmi/core": "catalog:",
+		"@yudiel/react-qr-scanner": "catalog:",
+		"cva": "catalog:",
+		"ox": "catalog:",
+		"qrcode": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"tailwind-merge": "catalog:",
+		"tailwindcss": "catalog:",
+		"tw-animate-css": "catalog:",
+		"viem": "catalog:",
+		"wagmi": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@iconify/json": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"@vitejs/plugin-react": "catalog:",
+		"unplugin-icons": "catalog:",
+		"vite": "catalog:",
+		"wrangler": "catalog:"
+	}
+}
