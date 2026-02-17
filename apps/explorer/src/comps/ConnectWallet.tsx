@@ -84,7 +84,6 @@ function ConnectWalletInner({
 							connect.mutate(
 								{
 									connector: passkeyConnector,
-									capabilities: { type: 'sign-up' },
 								} as Parameters<typeof connect.mutate>[0],
 								{
 									onSettled: () => setPendingId(null),
