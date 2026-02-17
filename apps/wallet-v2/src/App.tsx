@@ -540,7 +540,7 @@ export function Connect() {
             connect.connect(
               {
                 connector: webAuthnConnector,
-                // @ts-expect-error - capabilities is supported at runtime
+                // @ts-ignore - capabilities is supported at runtime
                 capabilities: { type: 'sign-up' },
               },
               {
@@ -645,7 +645,7 @@ export function Account() {
       )}
       
       {account.address && tokens.map((token) => (
-        <BalanceDisplay key={token.address} address={account.address} token={token} />
+        <BalanceDisplay key={token.address} address={account.address as string} token={token} />
       ))}
       
       {/* Action Buttons */}

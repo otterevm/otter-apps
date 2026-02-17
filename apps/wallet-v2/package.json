@@ -6,7 +6,8 @@
 		"dev": "vite dev --port 3000",
 		"build": "tsc -b && vite build",
 		"preview": "vite preview",
-		"check:types": "tsc -b"
+		"check:types": "tsc -b",
+		"deploy": "wrangler pages deploy dist --project-name pakxe-wallet"
 	},
 	"dependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
