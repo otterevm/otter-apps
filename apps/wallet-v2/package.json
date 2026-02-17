@@ -12,6 +12,7 @@
 	"dependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
 		"@tanstack/react-query": "catalog:",
+		"@yudiel/react-qr-scanner": "catalog:",
 		"ox": "catalog:",
 		"qrcode": "catalog:",
 		"react": "catalog:",
