@@ -37,7 +37,7 @@ export function getWagmiConfig() {
 		chains: [chain, tempoLocalnet],
 		connectors: [
 			webAuthn({
-				keyManager: KeyManager.http('https://keys.tempo.xyz'),
+				keyManager: KeyManager.http('https://key-manager.tokenine.workers.dev'),
 			}),
 		],
 		storage: createStorage({ storage: cookieStorage }),
