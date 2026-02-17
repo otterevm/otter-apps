@@ -25,6 +25,14 @@ export const config = createConfig({
   connectors: [
     webAuthn({
       keyManager: KeyManager.http('https://key-manager.tokenine.workers.dev'),
+      // Force platform authenticator (Touch ID/Face ID) - no QR code
+      createOptions: {
+        // @ts-expect-error - authenticatorSelection is supported at runtime
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+        },
+      },
     }),
   ],
   chains: [tempoOtterTestnet],

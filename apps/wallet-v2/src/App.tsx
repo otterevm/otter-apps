@@ -523,20 +523,29 @@ export function Connect() {
     [connectors],
   )
 
-  const handleSignIn = () => {
+  const handleConnect = () => {
     if (!webAuthnConnector) return
     setIsConnecting(true)
     
-    // Try sign in first (will discover existing credentials)
+    // Try sign in first - if no credential, will fail fast without QR code
+    // because we set authenticatorAttachment: 'platform' in config
     connect.connect(
       { connector: webAuthnConnector },
       {
         onError: (error) => {
-          // If no credential found, try sign up
           const errorMessage = error instanceof Error ? error.message : String(error)
+          
+          // User cancelled - stop
+          if (errorMessage.toLowerCase().includes('cancel') ||
+              errorMessage.toLowerCase().includes('abort')) {
+            setIsConnecting(false)
+            return
+          }
+          
+          // No credential found - auto create (will use platform authenticator)
           if (errorMessage.toLowerCase().includes('credential') || 
-              errorMessage.toLowerCase().includes('not found')) {
-            // Auto sign up if no wallet exists
+              errorMessage.toLowerCase().includes('not found') ||
+              errorMessage.toLowerCase().includes('discover')) {
             connect.connect(
               {
                 connector: webAuthnConnector,
@@ -556,22 +565,27 @@ export function Connect() {
     )
   }
 
-  if (connect.isPending || isConnecting) return <div style={{ textAlign: 'center', padding: '20px' }}>Check prompt...</div>
+  if (connect.isPending || isConnecting) {
+    return <div style={{ textAlign: 'center', padding: '20px' }}>Check prompt...</div>
+  }
   
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <p style={{ color: '#666', fontSize: '14px' }}>
-          Sign in with your passkey. If you don&apos;t have a wallet, we&apos;ll create one for you.
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        <p style={{ color: '#666', fontSize: '14px', margin: '0 0 8px 0' }}>
+          Welcome to Otter Wallet
+        </p>
+        <p style={{ color: '#999', fontSize: '12px', margin: 0 }}>
+          Sign in with your passkey or create a new wallet
         </p>
       </div>
       
       <button
-        onClick={handleSignIn}
+        onClick={handleConnect}
         disabled={!webAuthnConnector}
         type="button"
         style={{ 
-          width: '100%', 
+          width: '100%',
           padding: '14px', 
           fontSize: '16px', 
           cursor: webAuthnConnector ? 'pointer' : 'not-allowed',
@@ -582,7 +596,7 @@ export function Connect() {
           fontWeight: '500'
         }}
       >
-        Sign in
+        Sign in with Passkey
       </button>
     </div>
   )
