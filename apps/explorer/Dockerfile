@@ -57,19 +57,20 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 WORKDIR /app
 
-# Copy production server and built assets
-COPY --from=builder /app/apps/explorer/dist ./dist
-COPY --from=builder /app/apps/explorer/src/server.production.mjs ./server.production.mjs
+# Copy everything from builder (dependencies + build output)
+COPY --from=builder /app .
 
-# No need to install wrangler - we use Node.js directly
-# Clean npm cache to reduce image size
-RUN npm cache clean --force
+# Clean unnecessary files to reduce image size
+RUN npm cache clean --force && rm -rf /tmp/*
 
-# Set production environment
+WORKDIR /app/apps/explorer
+
+# Set production environment and memory limit
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--max-old-space-size=1024
 
 # Expose port
 EXPOSE 3000
 
-# Run production server directly with Node.js
-CMD ["node", "server.production.mjs"]
+# Run with wrangler
+CMD ["npx", "wrangler", "dev", "--port", "3000", "--ip", "0.0.0.0", "--log-level", "warn"]
