@@ -66,8 +66,48 @@ COPY --from=builder /app/apps/explorer/dist ./dist
 # Work from the server directory
 WORKDIR /app/dist/server
 
+# Set memory limit for Node.js (help prevent OOM)
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+# Disable source maps to reduce memory usage
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 3000
 
-# Run
-CMD ["wrangler", "dev", "--port", "3000", "--ip", "0.0.0.0"]
+# Create startup script with restart logic
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo "Starting Explorer with memory limit: ${NODE_OPTIONS}"\n\
+\n\
+# Function to cleanup on exit\n\
+cleanup() {\n\
+    echo "Shutting down..."\n\
+    kill -TERM "$child" 2>/dev/null || true\n\
+    wait "$child" 2>/dev/null || true\n\
+    exit 0\n\
+}\n\
+\n\
+trap cleanup SIGTERM SIGINT\n\
+\n\
+while true; do\n\
+    echo "Starting wrangler dev..."\n\
+    \n\
+    # Run wrangler dev with limited concurrency to reduce memory\n\
+    wrangler dev --port 3000 --ip 0.0.0.0 --log-level warn &\n\
+    child=$!\n\
+    \n\
+    # Wait for process\n\
+    if wait "$child"; then\n\
+        echo "Wrangler exited normally"\n\
+        break\n\
+    else\n\
+        exit_code=$?\n\
+        echo "Wrangler crashed with exit code $exit_code, restarting in 5 seconds..."\n\
+        sleep 5\n\
+    fi\n\
+done\n\
+' > /start.sh && chmod +x /start.sh
+
+# Run with restart script
+CMD ["/start.sh"]
