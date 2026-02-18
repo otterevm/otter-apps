@@ -1,0 +1,19 @@
+services:
+  explorer-aispoint:
+    image: ghcr.io/otterevm/explorer:aispoint
+    container_name: explorer-aispoint
+    networks:
+      - nginx-network
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=1024
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+networks:
+  nginx-network:
+    external: true
