@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Production Node.js server for Explorer
- * Lightweight alternative to wrangler dev
+ * Lightweight SPA server (no SSR hydration)
  */
 
 import http from 'node:http'
@@ -131,7 +131,7 @@ async function handleApiRequest(req, res) {
   return false
 }
 
-// Generate and serve index.html
+// Generate and serve index.html (SPA mode - no SSR hydration)
 function serveIndex(req, res) {
   const mainJs = findMainJs()
   
@@ -145,6 +145,7 @@ function serveIndex(req, res) {
   const chainId = process.env.VITE_CHAIN_ID || '7447'
   const rpcUrl = process.env.VITE_RPC_URL || ''
 
+  // SPA HTML - no hydration, pure client-side rendering
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,14 +155,20 @@ function serveIndex(req, res) {
   <link rel="icon" type="image/svg+xml" href="/favicon-light.svg" media="(prefers-color-scheme: light)">
   <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)">
   <script>
+    // Runtime config for the app
     window.__EXPLORER_CONFIG__ = {
       chainName: "${chainName}",
       chainId: "${chainId}",
       rpcUrl: "${rpcUrl}"
     };
+    
+    // Vite env simulation
+    window.import = window.import || {};
+    window.import.meta = { env: {} };
   </script>
 </head>
 <body>
+  <div id="root"></div>
   <div id="app"></div>
   <script type="module" src="${mainJs}"></script>
 </body>
@@ -208,7 +215,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // Fallback to index.html (SPA)
+    // Fallback to index.html (SPA mode)
     serveIndex(req, res)
     logRequest(req, 200, Date.now() - start)
   } catch (error) {

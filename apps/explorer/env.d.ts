@@ -20,6 +20,8 @@ interface EnvironmentVariables {
 	readonly VITE_CHAIN_ID: string | undefined
 	readonly VITE_RPC_URL: string | undefined
 	readonly VITE_LOGO_URL: string | undefined
+	readonly VITE_EXP_URL: string | undefined
+	readonly VITE_NATIVE: string | undefined
 
 	readonly TEMPO_RPC_KEY: string
 }
@@ -42,4 +44,13 @@ declare const __BUILD_VERSION__: string
 declare module 'shiki/onig.wasm' {
 	const wasm: unknown
 	export default wasm
+}
+
+// MetaMask / Web3 wallet types
+declare global {
+	interface Window {
+		ethereum?: {
+			request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+		}
+	}
 }

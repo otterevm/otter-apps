@@ -10,6 +10,8 @@ ARG VITE_CHAIN_NAME=Pakxe
 ARG VITE_CHAIN_ID=7447
 ARG VITE_RPC_URL=https://rpc.pakxe.otterevm.com/
 ARG VITE_LOGO_URL=/logo.svg
+ARG VITE_EXP_URL=
+ARG VITE_NATIVE=OTTER
 
 # Make them available as environment variables during build
 ENV VITE_TEMPO_ENV=$VITE_TEMPO_ENV
@@ -17,6 +19,8 @@ ENV VITE_CHAIN_NAME=$VITE_CHAIN_NAME
 ENV VITE_CHAIN_ID=$VITE_CHAIN_ID
 ENV VITE_RPC_URL=$VITE_RPC_URL
 ENV VITE_LOGO_URL=$VITE_LOGO_URL
+ENV VITE_EXP_URL=$VITE_EXP_URL
+ENV VITE_NATIVE=$VITE_NATIVE
 
 # Install required tools
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*

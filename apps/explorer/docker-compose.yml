@@ -11,11 +11,15 @@ services:
         #   VITE_CHAIN_ID=7447
         #   VITE_RPC_URL=https://rpc.pakxe.otterevm.com/
         #   VITE_LOGO_URL=/logo.svg
+        #   VITE_EXP_URL=https://pakxe.otterevm.com/
+        #   VITE_NATIVE=OTTER
         - VITE_TEMPO_ENV=custom
         - VITE_CHAIN_NAME=${VITE_CHAIN_NAME:-Pakxe}
         - VITE_CHAIN_ID=${VITE_CHAIN_ID:-7447}
         - VITE_RPC_URL=${VITE_RPC_URL:-https://rpc.pakxe.otterevm.com/}
         - VITE_LOGO_URL=${VITE_LOGO_URL:-/logo.svg}
+        - VITE_EXP_URL=${VITE_EXP_URL:-}
+        - VITE_NATIVE=${VITE_NATIVE:-OTTER}
     container_name: otterevm-explorer
     ports:
       - "3000:3000"
