@@ -9,14 +9,14 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@10
 
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/explorer/package.json ./apps/explorer/
 COPY packages/ ./packages/
 
-# Install dependencies
+# Install dependencies (allow lockfile update for node package)
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
