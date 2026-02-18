@@ -220,8 +220,10 @@ export namespace Header {
 
 		const baseClass = 'h-14 w-auto'
 		const classes = className ? `${baseClass} ${className}` : baseClass
+		const logoUrl = import.meta.env.VITE_LOGO_URL || '/logo.svg'
+		const chainName = import.meta.env.VITE_CHAIN_NAME || 'OtterEVM'
 
-		return <img alt="OtterEVM" className={classes} src="/logo.svg" />
+		return <img alt={chainName} className={classes} src={logoUrl} />
 	}
 
 	export namespace Logo {

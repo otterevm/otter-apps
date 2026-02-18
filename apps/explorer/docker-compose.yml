@@ -9,7 +9,17 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - VITE_TEMPO_ENV=ottertestnet
+      # Chain configuration - customize these for your blockchain
+      # Examples:
+      #   VITE_CHAIN_NAME=Pakxe
+      #   VITE_CHAIN_ID=7447
+      #   VITE_RPC_URL=https://rpc.pakxe.otterevm.com/
+      #   VITE_LOGO_URL=/logo.svg
+      - VITE_TEMPO_ENV=custom
+      - VITE_CHAIN_NAME=${VITE_CHAIN_NAME:-Pakxe}
+      - VITE_CHAIN_ID=${VITE_CHAIN_ID:-7447}
+      - VITE_RPC_URL=${VITE_RPC_URL:-https://rpc.pakxe.otterevm.com/}
+      - VITE_LOGO_URL=${VITE_LOGO_URL:-/logo.svg}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]

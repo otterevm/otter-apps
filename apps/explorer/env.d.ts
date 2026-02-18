@@ -8,7 +8,18 @@ interface EnvironmentVariables {
 	readonly VITE_SENTRY_DSN: string | undefined
 	readonly VITE_SENTRY_TRACES_SAMPLE_RATE: string | undefined
 
-	readonly VITE_TEMPO_ENV: 'testnet' | 'moderato' | 'devnet' | 'presto'
+	readonly VITE_TEMPO_ENV:
+		| 'testnet'
+		| 'moderato'
+		| 'devnet'
+		| 'presto'
+		| 'custom'
+
+	// Custom chain configuration
+	readonly VITE_CHAIN_NAME: string | undefined
+	readonly VITE_CHAIN_ID: string | undefined
+	readonly VITE_RPC_URL: string | undefined
+	readonly VITE_LOGO_URL: string | undefined
 
 	readonly TEMPO_RPC_KEY: string
 }

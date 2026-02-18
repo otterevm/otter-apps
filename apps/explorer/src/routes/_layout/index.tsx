@@ -68,9 +68,19 @@ const SPOTLIGHT_DATA: Record<
 		mintHash:
 			'0xc2ecd6749cac0ddce9511cbffe91c2a3de7c2b93d28e35d2d57b7ef4380bc37b',
 	},
+	// Fallback for custom chains - uses testnet data as placeholder
+	custom: {
+		accountAddress: '0x0000000000000000000000000000000000000000',
+		contractAddress: '0x0000000000000000000000000000000000000000',
+		receiptHash: null,
+		paymentHash: null,
+		swapHash: null,
+		mintHash: null,
+	},
 }
 
-const spotlightData = SPOTLIGHT_DATA[import.meta.env.VITE_TEMPO_ENV]
+const spotlightData =
+	SPOTLIGHT_DATA[import.meta.env.VITE_TEMPO_ENV] ?? SPOTLIGHT_DATA.custom
 
 export const Route = createFileRoute('/_layout/')({
 	component: Component,

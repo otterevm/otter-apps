@@ -34,3 +34,32 @@ export const tempoOtterTestnet = {
 		default: { name: 'Otter Explorer', url: 'http://localhost:3000' },
 	},
 } as const
+
+// Custom chain from environment variables
+function getCustomChain() {
+	const chainName = import.meta.env.VITE_CHAIN_NAME || 'Custom Chain'
+	const chainId = Number(import.meta.env.VITE_CHAIN_ID || '7447')
+	const rpcUrl =
+		import.meta.env.VITE_RPC_URL || 'https://rpc.pakxe.otterevm.com/'
+
+	return {
+		...tempoModerato,
+		id: chainId,
+		name: chainName,
+		nativeCurrency: {
+			name: 'Otter',
+			symbol: 'OTTER',
+			decimals: 6,
+		},
+		rpcUrls: {
+			default: {
+				http: [rpcUrl],
+			},
+		},
+		blockExplorers: {
+			default: { name: `${chainName} Explorer`, url: 'http://localhost:3000' },
+		},
+	} as const
+}
+
+export const customChain = getCustomChain()

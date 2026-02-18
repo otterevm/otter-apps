@@ -3,7 +3,7 @@ import { getRequestHeader } from '@tanstack/react-start/server'
 import { createPublicClient, http } from 'viem'
 import { tempoLocalnet } from 'viem/chains'
 import { tempoActions } from 'viem/tempo'
-import { tempoOtterTestnet } from './lib/chains'
+import { customChain, tempoOtterTestnet } from './lib/chains'
 import {
 	cookieStorage,
 	cookieToInitialState,
@@ -18,19 +18,31 @@ const OTTER_TESTNET_RPC = 'https://rpc.pakxe.otterevm.com/'
 export type WagmiConfig = ReturnType<typeof getWagmiConfig>
 let wagmiConfigSingleton: ReturnType<typeof createConfig> | null = null
 
-// Force Otter Testnet only
-export const getTempoChain = createIsomorphicFn()
-	.client(() => tempoOtterTestnet)
-	.server(() => tempoOtterTestnet)
+// Get chain from environment or use default
+function getActiveChain() {
+	const env = import.meta.env.VITE_TEMPO_ENV
+	if (env === 'custom' || import.meta.env.VITE_CHAIN_NAME) {
+		return customChain
+	}
+	return tempoOtterTestnet
+}
 
-const getOtterTestnetTransport = createIsomorphicFn()
-	.client(() => http(OTTER_TESTNET_RPC))
-	.server(() => http(OTTER_TESTNET_RPC))
+function getActiveRpcUrl() {
+	return import.meta.env.VITE_RPC_URL || OTTER_TESTNET_RPC
+}
+
+export const getTempoChain = createIsomorphicFn()
+	.client(() => getActiveChain())
+	.server(() => getActiveChain())
+
+const getActiveTransport = createIsomorphicFn()
+	.client(() => http(getActiveRpcUrl()))
+	.server(() => http(getActiveRpcUrl()))
 
 export function getWagmiConfig() {
 	if (wagmiConfigSingleton) return wagmiConfigSingleton
 	const chain = getTempoChain()
-	const transport = getOtterTestnetTransport()
+	const transport = getActiveTransport()
 
 	wagmiConfigSingleton = createConfig({
 		ssr: true,
@@ -59,7 +71,7 @@ export const getWagmiStateSSR = createServerFn().handler(() => {
 // Batched HTTP client for bulk RPC operations
 export function getBatchedClient() {
 	const chain = getTempoChain()
-	const transport = getOtterTestnetTransport()
+	const transport = getActiveTransport()
 
 	return createPublicClient({ chain, transport }).extend(tempoActions())
 }
