@@ -9,6 +9,7 @@ import { waapi, stagger } from 'animejs'
 import type { Address, Hex } from 'ox'
 import * as React from 'react'
 import { ExploreInput } from '#comps/ExploreInput'
+import { ChainInfo } from '#comps/ChainInfo'
 import { cx } from '#lib/css'
 import { springInstant, springBouncy, springSmooth } from '#lib/animation'
 import { Intro, type IntroPhase, useIntroSeen } from '#comps/Intro'
@@ -173,6 +174,9 @@ function Component() {
 							}
 						}}
 					/>
+				</div>
+				<div className="w-full flex justify-center px-4">
+					<ChainInfo />
 				</div>
 				<SpotlightLinks />
 			</div>

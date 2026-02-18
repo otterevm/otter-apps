@@ -63,3 +63,29 @@ function getCustomChain() {
 }
 
 export const customChain = getCustomChain()
+
+// Get display name for the current chain
+export function getChainDisplayName(): string {
+	return import.meta.env.VITE_CHAIN_NAME || 'OtterEVM'
+}
+
+// Get chain configuration for adding to wallet
+export function getWalletChainConfig() {
+	const chainId = Number(import.meta.env.VITE_CHAIN_ID || '7447')
+	const chainName = import.meta.env.VITE_CHAIN_NAME || 'OtterEVM'
+	const rpcUrl = import.meta.env.VITE_RPC_URL || 'https://rpc.pakxe.otterevm.com/'
+	const nativeCurrency = import.meta.env.VITE_NATIVE || 'OTTER'
+	const explorerUrl = import.meta.env.VITE_EXP_URL || 'https://explorer.otterevm.com'
+
+	return {
+		chainId: `0x${chainId.toString(16)}`,
+		chainName,
+		nativeCurrency: {
+			name: nativeCurrency,
+			symbol: nativeCurrency,
+			decimals: 6,
+		},
+		rpcUrls: [rpcUrl],
+		blockExplorerUrls: explorerUrl ? [explorerUrl] : undefined,
+	}
+}
