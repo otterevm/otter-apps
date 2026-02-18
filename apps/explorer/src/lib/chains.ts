@@ -83,7 +83,7 @@ export function getWalletChainConfig() {
 		nativeCurrency: {
 			name: nativeCurrency,
 			symbol: nativeCurrency,
-			decimals: 6,
+			decimals: 18, // MetaMask requires 18 decimals
 		},
 		rpcUrls: [rpcUrl],
 		blockExplorerUrls: explorerUrl ? [explorerUrl] : undefined,
