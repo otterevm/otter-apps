@@ -57,57 +57,19 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 WORKDIR /app
 
-# Install wrangler
-RUN npm install -g wrangler && npm cache clean --force
-
-# Copy built assets
+# Copy production server and built assets
 COPY --from=builder /app/apps/explorer/dist ./dist
+COPY --from=builder /app/apps/explorer/src/server.production.mjs ./server.production.mjs
 
-# Work from the server directory
-WORKDIR /app/dist/server
+# No need to install wrangler - we use Node.js directly
+# Clean npm cache to reduce image size
+RUN npm cache clean --force
 
-# Set memory limit for Node.js (help prevent OOM)
-ENV NODE_OPTIONS="--max-old-space-size=1536"
-# Disable source maps to reduce memory usage
+# Set production environment
 ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 3000
 
-# Create startup script with restart logic
-RUN echo '#!/bin/bash\n\
-set -e\n\
-\n\
-echo "Starting Explorer with memory limit: ${NODE_OPTIONS}"\n\
-\n\
-# Function to cleanup on exit\n\
-cleanup() {\n\
-    echo "Shutting down..."\n\
-    kill -TERM "$child" 2>/dev/null || true\n\
-    wait "$child" 2>/dev/null || true\n\
-    exit 0\n\
-}\n\
-\n\
-trap cleanup SIGTERM SIGINT\n\
-\n\
-while true; do\n\
-    echo "Starting wrangler dev..."\n\
-    \n\
-    # Run wrangler dev with limited concurrency to reduce memory\n\
-    wrangler dev --port 3000 --ip 0.0.0.0 --log-level warn &\n\
-    child=$!\n\
-    \n\
-    # Wait for process\n\
-    if wait "$child"; then\n\
-        echo "Wrangler exited normally"\n\
-        break\n\
-    else\n\
-        exit_code=$?\n\
-        echo "Wrangler crashed with exit code $exit_code, restarting in 5 seconds..."\n\
-        sleep 5\n\
-    fi\n\
-done\n\
-' > /start.sh && chmod +x /start.sh
-
-# Run with restart script
-CMD ["/start.sh"]
+# Run production server directly with Node.js
+CMD ["node", "server.production.mjs"]
