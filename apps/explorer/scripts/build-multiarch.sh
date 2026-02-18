@@ -107,7 +107,7 @@ echo ""
 remote_build() {
     local server=$1
     local arch=$2
-    local arch_tag="${TAG}-${arch}"
+    local arch_tag="${TAG}-${arch}-image"
     
     log_info "[$arch] Starting build on $server..."
     
@@ -123,7 +123,7 @@ TAG="$2"
 IMAGE_NAME="$3"
 REPO_URL="$4"
 BUILD_BRANCH="$5"
-ARCH_TAG="${TAG}-${ARCH}"
+ARCH_TAG="${TAG}-${ARCH}-image"
 
 BUILD_DIR="/tmp/explorer-build-$(date +%s)"
 mkdir -p "$BUILD_DIR"
@@ -138,7 +138,8 @@ cd otter-apps
 
 # Build Docker image
 echo "[$ARCH] Building Docker image..."
-docker build -f apps/explorer/Dockerfile -t "$IMAGE_NAME:$ARCH_TAG" .
+# Use buildx with --provenance=false to avoid creating manifest lists for intermediate images
+docker buildx build --provenance=false -f apps/explorer/Dockerfile -t "$IMAGE_NAME:$ARCH_TAG" .
 
 # Push to registry
 echo "[$ARCH] Pushing $IMAGE_NAME:$ARCH_TAG..."
@@ -199,12 +200,12 @@ docker manifest rm "$IMAGE_NAME:$TAG" 2>/dev/null || true
 
 # Create manifest
 docker manifest create "$IMAGE_NAME:$TAG" \
-    --amend "$IMAGE_NAME:${TAG}-amd64" \
-    --amend "$IMAGE_NAME:${TAG}-arm64"
+    --amend "$IMAGE_NAME:${TAG}-amd64-image" \
+    --amend "$IMAGE_NAME:${TAG}-arm64-image"
 
 # Annotate
-docker manifest annotate "$IMAGE_NAME:$TAG" "$IMAGE_NAME:${TAG}-amd64" --arch amd64 --os linux
-docker manifest annotate "$IMAGE_NAME:$TAG" "$IMAGE_NAME:${TAG}-arm64" --arch arm64 --os linux
+docker manifest annotate "$IMAGE_NAME:$TAG" "$IMAGE_NAME:${TAG}-amd64-image" --arch amd64 --os linux
+docker manifest annotate "$IMAGE_NAME:$TAG" "$IMAGE_NAME:${TAG}-arm64-image" --arch arm64 --os linux
 
 log_success "Manifest created"
 echo ""
