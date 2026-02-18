@@ -8,22 +8,29 @@ Complete deployment configurations for OtterEVM Explorer instances.
 deploy/
 ├── README.md                    # This file
 ├── setup-server.sh              # One-time server setup
-├── nginx/                       # Nginx reverse proxy
+├── nginx/                       # Nginx reverse proxy (shared)
 │   ├── docker-compose.yml       # Nginx container
-│   └── nginx.conf               # Base nginx config
+│   ├── nginx.conf               # Base nginx config
+│   └── conf.d/                  # Virtual host configs (IMPORTANT!)
+│       ├── aispoint.conf
+│       ├── exp.conf
+│       ├── pakxe.conf
+│       └── rpc.conf
 ├── aispoint/                    # AISPoint (Chain ID 7448)
 │   ├── deploy.sh                # One-command deployment
-│   ├── explorer/                # Docker Compose configuration
-│   │   └── docker-compose.yml
-│   └── nginx/                   # Nginx vhost config
-│       └── aispoint.conf
+│   └── explorer/                # Docker Compose configuration
+│       └── docker-compose.yml
 └── pakxe/                       # Pakxe (Chain ID 7447)
     ├── deploy.sh                # One-command deployment
-    ├── explorer/                # Docker Compose configuration
-    │   └── docker-compose.yml
-    └── nginx/                   # Nginx vhost config
-        └── pakxe.conf
+    └── explorer/                # Docker Compose configuration
+        └── docker-compose.yml
 ```
+
+## ⚠️ Important: conf.d is Shared!
+
+All nginx virtual host configs are in `deploy/nginx/conf.d/` and are **shared across all chains**. 
+
+When you deploy any chain, it copies ALL configs from `conf.d/` to the server.
 
 ## Servers
 
@@ -46,7 +53,7 @@ cd /opt/otter-apps/deploy
 This will:
 - Install Docker & Docker Compose (if needed)
 - Create `/data/nginx/` and `/data/otter-exp/` directories
-- Copy nginx base config and docker-compose.yml
+- Copy nginx base config, docker-compose.yml, and all conf.d configs
 - Create `nginx-network`
 - Start nginx proxy container
 
@@ -68,50 +75,37 @@ cd /opt/otter-apps/deploy/aispoint
 
 ## What deploy.sh Does
 
-1. Copy chain-specific nginx config to `/data/nginx/conf.d/`
-2. Copy docker-compose.yml to `/data/otter-exp/`
+1. Copy **ALL** nginx configs from `deploy/nginx/conf.d/` to `/data/nginx/conf.d/`
+2. Copy explorer docker-compose.yml to `/data/otter-exp/`
 3. Ensure nginx is running (start or reload)
 4. Pull and deploy explorer container
-
-## Manual Deploy (Alternative)
-
-### Nginx Only
-
-```bash
-cd /data/nginx
-docker compose up -d
-docker compose exec nginx nginx -t
-docker compose exec nginx nginx -s reload
-```
-
-### Explorer Only
-
-**Pakxe:**
-```bash
-cd /data/otter-exp
-cp /opt/otter-apps/deploy/pakxe/explorer/docker-compose.yml docker-compose-pakxe.yml
-docker compose -f docker-compose-pakxe.yml pull
-docker compose -f docker-compose-pakxe.yml up -d
-```
-
-**AISPoint:**
-```bash
-cd /data/otter-exp
-cp /opt/otter-apps/deploy/aispoint/explorer/docker-compose.yml docker-compose.yml
-docker compose pull
-docker compose up -d
-```
 
 ## Update from Repo
 
 ```bash
 # On the server
 cd /opt/otter-apps
-git pull origin pakxe  # or aispoint-build for AISPoint
+git pull origin pakxe  # or aispoint-build for AISPoint specific
 
-# Re-deploy
+# Re-deploy (this will update ALL nginx configs)
 cd deploy/pakxe  # or deploy/aispoint
 ./deploy.sh
+```
+
+## Adding New Nginx Config
+
+If you need to add a new nginx config:
+
+1. Add config file to `deploy/nginx/conf.d/`
+2. Commit and push
+3. Deploy any chain (configs are shared)
+
+Example:
+```bash
+cp mynewchain.conf deploy/nginx/conf.d/
+git add deploy/nginx/conf.d/mynewchain.conf
+git commit -m "feat: add nginx config for mynewchain"
+git push origin pakxe
 ```
 
 ## Service URLs
@@ -174,7 +168,7 @@ curl -X POST https://pakxe.otterevm.com/rpc \
 - Image: `nginx:alpine`
 - Ports: `80:80`
 - Volumes:
-  - `./conf.d:/etc/nginx/conf.d:ro` (vhost configs)
+  - `./conf.d:/etc/nginx/conf.d:ro` (all vhost configs)
   - `./nginx.conf:/etc/nginx/nginx.conf:ro` (base config)
 - Network: `nginx-network`
 
@@ -192,8 +186,22 @@ curl -X POST https://pakxe.otterevm.com/rpc \
 
 ## Adding New Chain
 
-1. Copy `deploy/pakxe/` directory as template
-2. Update domain names in `nginx/<chain>.conf`
-3. Update image tag in `explorer/docker-compose.yml`
-4. Create `deploy.sh` (copy and modify paths)
+1. Create `deploy/<chain>/` directory:
+   ```bash
+   mkdir -p deploy/mynewchain/explorer
+   ```
+
+2. Add nginx config to `deploy/nginx/conf.d/mynewchain.conf`
+
+3. Create `deploy/mynewchain/explorer/docker-compose.yml`
+
+4. Create `deploy/mynewchain/deploy.sh` (copy from pakxe/deploy.sh and modify)
+
 5. Update this README
+
+6. Commit and deploy:
+   ```bash
+   git add deploy/
+   git commit -m "feat: add mynewchain deployment"
+   git push origin pakxe
+   ```

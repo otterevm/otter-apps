@@ -5,6 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 NGINX_DIR="/data/nginx"
 EXPLORER_DIR="/data/otter-exp"
 
@@ -19,9 +20,9 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Copy nginx config
-echo "[1/5] Copying nginx configuration..."
-cp "${SCRIPT_DIR}/nginx/pakxe.conf" "${NGINX_DIR}/conf.d/pakxe.conf"
+# Copy nginx configs (all from conf.d)
+echo "[1/5] Copying nginx configurations..."
+cp "${DEPLOY_DIR}/nginx/conf.d/"*.conf "${NGINX_DIR}/conf.d/"
 
 # Copy docker-compose
 echo "[2/5] Copying docker-compose configuration..."
