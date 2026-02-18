@@ -1,12 +1,11 @@
 #!/bin/bash
 # AISPoint Explorer Deployment Script
 # Usage: ./deploy.sh
+# This script deploys both nginx and explorer for AISPoint chain
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NGINX_DIR="/data/nginx"
-EXPLORER_DIR="/data/otter-exp"
 
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║   AISPoint Explorer Deployment                         ║"
@@ -19,35 +18,21 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Copy nginx config
-echo "[1/5] Copying nginx configuration..."
-cp "${SCRIPT_DIR}/nginx/aispoint.conf" "${NGINX_DIR}/conf.d/aispoint.conf"
-
-# Copy docker-compose
-echo "[2/5] Copying docker-compose configuration..."
-cp "${SCRIPT_DIR}/explorer/docker-compose.yml" "${EXPLORER_DIR}/docker-compose.yml"
-
-# Start nginx if not running
-echo "[3/5] Ensuring nginx is running..."
-cd "${NGINX_DIR}"
-if ! docker ps | grep -q "nginx-proxy"; then
-    echo "Starting nginx..."
-    docker compose up -d
-else
-    echo "Reloading nginx..."
-    docker compose exec nginx nginx -t
-    docker compose exec nginx nginx -s reload
-fi
+# Deploy Nginx
+echo "[1/2] Deploying Nginx..."
+cd "${SCRIPT_DIR}/nginx"
+docker compose up -d
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -s reload 2>/dev/null || true
 echo "✓ Nginx ready"
 
-# Deploy explorer
-echo "[4/5] Deploying AISPoint Explorer..."
-cd "${EXPLORER_DIR}"
+# Deploy Explorer
+echo "[2/2] Deploying AISPoint Explorer..."
+cd "${SCRIPT_DIR}/explorer"
 docker compose pull
 docker compose up -d --force-recreate
 
 # Wait and check
-echo "[5/5] Waiting for container to start..."
 sleep 3
 if docker ps --filter name=explorer-aispoint --format '{{.Status}}' | grep -q "Up"; then
     echo ""

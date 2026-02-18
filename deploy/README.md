@@ -1,28 +1,32 @@
 # Deployment Configurations
 
-Complete deployment configurations for OtterEVM Explorer instances.
+Complete self-contained deployment configurations for OtterEVM Explorer instances.
 
 ## Directory Structure
+
+Each chain has its own complete deployment directory:
 
 ```
 deploy/
 ├── README.md                    # This file
-├── setup-server.sh              # One-time server setup
-├── nginx/                       # Nginx base config (shared)
-│   ├── docker-compose.yml
-│   └── nginx.conf
 ├── aispoint/                    # AISPoint (Chain ID 7448)
 │   ├── deploy.sh                # One-command deployment
-│   ├── explorer/                # Docker Compose configuration
+│   ├── explorer/                # Explorer Docker Compose
 │   │   └── docker-compose.yml
-│   └── nginx/                   # Nginx vhost config
-│       └── aispoint.conf
+│   └── nginx/                   # Nginx with vhost config
+│       ├── docker-compose.yml
+│       ├── nginx.conf
+│       └── conf.d/
+│           └── aispoint.conf
 └── pakxe/                       # Pakxe (Chain ID 7447)
     ├── deploy.sh                # One-command deployment
-    ├── explorer/                # Docker Compose configuration
+    ├── explorer/                # Explorer Docker Compose
     │   └── docker-compose.yml
-    └── nginx/                   # Nginx vhost config
-        └── pakxe.conf
+    └── nginx/                   # Nginx with vhost config
+        ├── docker-compose.yml
+        ├── nginx.conf
+        └── conf.d/
+            └── pakxe.conf
 ```
 
 ## Servers
@@ -32,46 +36,42 @@ deploy/
 | AISPoint | 91.99.191.14 | ARM64 | aispoint.otterevm.com |
 | Pakxe | 23.88.35.142 | AMD64 | pakxe.otterevm.com, rpc.pakxe.otterevm.com |
 
-## Quick Start
+## Quick Deploy
 
-### 1. New Server - Setup (Run Once)
-
-```bash
-ssh root@<server-ip>
-git clone https://github.com/otterevm/otter-apps.git /opt/otter-apps
-cd /opt/otter-apps/deploy
-./setup-server.sh
-```
-
-This will:
-- Install Docker & Docker Compose (if needed)
-- Create `/data/nginx/` and `/data/otter-exp/` directories
-- Copy nginx base config and docker-compose.yml
-- Create `nginx-network`
-- Start nginx proxy container
-
-### 2. Deploy Chain Explorer
+### 1. Copy to Server
 
 **Pakxe (23.88.35.142):**
 ```bash
+# From local machine
+scp -r deploy/pakxe root@23.88.35.142:/opt/
 ssh root@23.88.35.142
-cd /opt/otter-apps/deploy/pakxe
+cd /opt/pakxe
 ./deploy.sh
 ```
 
 **AISPoint (91.99.191.14):**
 ```bash
+# From local machine
+scp -r deploy/aispoint root@91.99.191.14:/opt/
 ssh root@91.99.191.14
-cd /opt/otter-apps/deploy/aispoint
+cd /opt/aispoint
+./deploy.sh
+```
+
+### 2. Or Clone Repo on Server
+
+```bash
+ssh root@<server-ip>
+git clone https://github.com/otterevm/otter-apps.git /opt/otter-apps
+cd /opt/otter-apps/deploy/pakxe  # or aispoint
 ./deploy.sh
 ```
 
 ## What deploy.sh Does
 
-1. Copy chain-specific nginx config to `/data/nginx/conf.d/`
-2. Copy explorer docker-compose.yml to `/data/otter-exp/`
-3. Ensure nginx is running (start or reload)
-4. Pull and deploy explorer container
+1. Start nginx container with chain-specific config
+2. Start explorer container
+3. Both use the same Docker network (`<chain>-network`)
 
 ## Update from Repo
 
@@ -105,9 +105,11 @@ cd deploy/pakxe  # or deploy/aispoint
 
 ## Troubleshooting
 
-### Check all services
+### Check services
 ```bash
-docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+cd /opt/pakxe  # or /opt/aispoint
+docker compose -f nginx/docker-compose.yml ps
+docker compose -f explorer/docker-compose.yml ps
 ```
 
 ### View logs
@@ -122,14 +124,9 @@ docker logs explorer-aispoint # AISPoint
 
 ### Restart services
 ```bash
-# Restart nginx
-cd /data/nginx
-docker compose restart
-
-# Restart explorer
-cd /data/otter-exp
-docker compose -f docker-compose-pakxe.yml restart  # Pakxe
-docker compose restart                              # AISPoint
+cd /opt/pakxe  # or /opt/aispoint
+docker compose -f nginx/docker-compose.yml restart
+docker compose -f explorer/docker-compose.yml restart
 ```
 
 ### Test RPC endpoint
@@ -141,18 +138,18 @@ curl -X POST https://pakxe.otterevm.com/rpc \
 
 ## Configuration Details
 
-### Nginx Docker Compose (Shared)
+### Nginx Docker Compose
 - Image: `nginx:alpine`
 - Ports: `80:80`
 - Volumes:
-  - `./conf.d:/etc/nginx/conf.d:ro` (vhost configs from each chain)
+  - `./conf.d:/etc/nginx/conf.d:ro` (vhost config)
   - `./nginx.conf:/etc/nginx/nginx.conf:ro` (base config)
-- Network: `nginx-network`
+- Network: `<chain>-network`
 
-### Explorer Docker Compose (Per Chain)
+### Explorer Docker Compose
 - Image: `ghcr.io/otterevm/explorer:<chain-tag>`
 - Ports: internal only (3000)
-- Network: `nginx-network`
+- Network: `<chain>-network`
 - Environment: `NODE_ENV=production`
 
 ### Nginx Features
@@ -163,30 +160,20 @@ curl -X POST https://pakxe.otterevm.com/rpc \
 
 ## Adding New Chain
 
-1. Create directory structure:
+1. Copy `deploy/pakxe/` directory:
    ```bash
-   mkdir -p deploy/mynewchain/{nginx,explorer}
+   cp -r deploy/pakxe deploy/mynewchain
    ```
 
-2. Add files:
-   - `deploy/mynewchain/nginx/mynewchain.conf` - Nginx vhost config
-   - `deploy/mynewchain/explorer/docker-compose.yml` - Explorer compose
-   - `deploy/mynewchain/deploy.sh` - Deployment script (copy from pakxe)
+2. Update files:
+   - `nginx/conf.d/pakxe.conf` → `nginx/conf.d/mynewchain.conf` (update domains)
+   - `nginx/docker-compose.yml` → change network name to `mynewchain-network`
+   - `explorer/docker-compose.yml` → update image tag and network
+   - `deploy.sh` → update container names
 
-3. Update `deploy.sh` paths for your chain
-
-4. Commit and deploy:
+3. Commit and deploy:
    ```bash
    git add deploy/mynewchain/
    git commit -m "feat: add mynewchain deployment"
    git push origin pakxe
    ```
-
-## File Locations on Server
-
-| Component | Path |
-|-----------|------|
-| Nginx base | `/data/nginx/docker-compose.yml` |
-| Nginx config | `/data/nginx/nginx.conf` |
-| Vhost configs | `/data/nginx/conf.d/` |
-| Explorer compose | `/data/otter-exp/docker-compose*.yml` |
