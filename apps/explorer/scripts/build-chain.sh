@@ -110,10 +110,10 @@ remote_build() {
 #!/bin/bash
 set -e
 
-ARCH="$1"
-TAG="$2"
-IMAGE_NAME="$3"
-ARCH_TAG="${TAG}-\${ARCH}"
+ARCH="\$1"
+TAG="\$2"
+IMAGE_NAME="\$3"
+ARCH_TAG="\${TAG}-\${ARCH}"
 REPO_URL="$REPO_URL"
 BUILD_BRANCH="$BUILD_BRANCH"
 
@@ -124,39 +124,39 @@ VITE_RPC_URL="$VITE_RPC_URL"
 VITE_EXP_URL="$VITE_EXP_URL"
 VITE_NATIVE="$VITE_NATIVE"
 
-BUILD_DIR="/tmp/explorer-build-\$(date +%s)"
-mkdir -p "\$BUILD_DIR"
-cd "\$BUILD_DIR"
+BUILD_DIR="/tmp/explorer-build-$(date +%s)"
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
-echo "[\$ARCH] Building in \$BUILD_DIR..."
+echo "[$ARCH] Building in $BUILD_DIR..."
 
-echo "[\$ARCH] Cloning \$REPO_URL (\$BUILD_BRANCH)..."
-git clone --depth 1 --branch "\$BUILD_BRANCH" "\$REPO_URL" otter-apps
+echo "[$ARCH] Cloning $REPO_URL ($BUILD_BRANCH)..."
+git clone --depth 1 --branch "$BUILD_BRANCH" "$REPO_URL" otter-apps
 cd otter-apps
 
-echo "[\$ARCH] Building Docker image with chain config..."
+echo "[$ARCH] Building Docker image with chain config..."
 docker buildx build --provenance=false \
-    --build-arg VITE_CHAIN_NAME="\$VITE_CHAIN_NAME" \
-    --build-arg VITE_CHAIN_ID="\$VITE_CHAIN_ID" \
-    --build-arg VITE_RPC_URL="\$VITE_RPC_URL" \
-    --build-arg VITE_EXP_URL="\$VITE_EXP_URL" \
-    --build-arg VITE_NATIVE="\$VITE_NATIVE" \
+    --build-arg VITE_CHAIN_NAME="$VITE_CHAIN_NAME" \
+    --build-arg VITE_CHAIN_ID="$VITE_CHAIN_ID" \
+    --build-arg VITE_RPC_URL="$VITE_RPC_URL" \
+    --build-arg VITE_EXP_URL="$VITE_EXP_URL" \
+    --build-arg VITE_NATIVE="$VITE_NATIVE" \
     --build-arg VITE_TEMPO_ENV=custom \
     -f apps/explorer/Dockerfile \
-    -t "\$IMAGE_NAME:\$ARCH_TAG" \
+    -t "$IMAGE_NAME:$ARCH_TAG" \
     .
 
-echo "[\$ARCH] Pushing \$IMAGE_NAME:\$ARCH_TAG..."
-docker push "\$IMAGE_NAME:\$ARCH_TAG"
+echo "[$ARCH] Pushing $IMAGE_NAME:$ARCH_TAG..."
+docker push "$IMAGE_NAME:$ARCH_TAG"
 
 cd /
-rm -rf "\$BUILD_DIR"
+rm -rf "$BUILD_DIR"
 
-echo "[\$ARCH] Build complete!"
+echo "[$ARCH] Build complete!"
 BUILD_SCRIPT
 
     ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$server" \
-        "chmod +x $remote_script && $remote_script $arch $TAG $IMAGE_NAME; rm -f $remote_script"
+        "chmod +x $remote_script && bash $remote_script $arch $TAG $IMAGE_NAME; rm -f $remote_script"
 }
 
 # Start parallel builds
