@@ -1,21 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Explorer</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon-light.svg" media="(prefers-color-scheme: light)">
-  <link rel="icon" type="image/svg+xml" href="/favicon-dark.svg" media="(prefers-color-scheme: dark)">
-  <script>
-    window.__EXPLORER_CONFIG__ = {
-      chainName: "{{CHAIN_NAME}}",
-      chainId: "{{CHAIN_ID}}",
-      rpcUrl: "{{RPC_URL}}"
-    };
-  </script>
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/{{MAIN_JS}}"></script>
-</body>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Explorer</title>
+		<link
+			rel="icon"
+			type="image/svg+xml"
+			href="/favicon-light.svg"
+			media="(prefers-color-scheme: light)"
+		>
+		<link
+			rel="icon"
+			type="image/svg+xml"
+			href="/favicon-dark.svg"
+			media="(prefers-color-scheme: dark)"
+		>
+		<script>
+		window.__EXPLORER_CONFIG__ = {
+			chainName: '{{CHAIN_NAME}}',
+			chainId: '{{CHAIN_ID}}',
+			rpcUrl: '{{RPC_URL}}',
+		}
+		</script>
+	</head>
+	<body>
+		<div id="app"></div>
+		<script type="module" src="/{{MAIN_JS}}"></script>
+	</body>
 </html>
