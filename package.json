@@ -26,7 +26,6 @@
 		"@j178/prek": "^0.3.0",
 		"@tempoxyz/lints": "github:tempoxyz/lints",
 		"@typescript/native-preview": "^7.0.0-dev.20260128.1",
-		"node": "runtime:24.12.0",
 		"simple-git-hooks": "^2.13.1",
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3"
