@@ -6,13 +6,12 @@ import { App } from './App.tsx'
 
 import { config, queryClient } from './wagmi.config.ts'
 
-
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </WagmiProvider>
-  </StrictMode>,
+	<StrictMode>
+		<WagmiProvider config={config}>
+			<QueryClientProvider client={queryClient}>
+				<App />
+			</QueryClientProvider>
+		</WagmiProvider>
+	</StrictMode>,
 )
