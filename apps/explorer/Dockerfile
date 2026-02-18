@@ -4,6 +4,20 @@
 # Stage 1: Build
 FROM node:20-slim AS builder
 
+# Build arguments for chain configuration (Vite embeds these at build time)
+ARG VITE_TEMPO_ENV=custom
+ARG VITE_CHAIN_NAME=Pakxe
+ARG VITE_CHAIN_ID=7447
+ARG VITE_RPC_URL=https://rpc.pakxe.otterevm.com/
+ARG VITE_LOGO_URL=/logo.svg
+
+# Make them available as environment variables during build
+ENV VITE_TEMPO_ENV=$VITE_TEMPO_ENV
+ENV VITE_CHAIN_NAME=$VITE_CHAIN_NAME
+ENV VITE_CHAIN_ID=$VITE_CHAIN_ID
+ENV VITE_RPC_URL=$VITE_RPC_URL
+ENV VITE_LOGO_URL=$VITE_LOGO_URL
+
 # Install required tools
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
@@ -31,7 +45,7 @@ COPY packages/rpc-utils ./packages/rpc-utils/
 COPY apps/explorer ./apps/explorer/
 COPY biome.json ./
 
-# Build the explorer app
+# Build the explorer app with environment variables
 WORKDIR /app/apps/explorer
 RUN pnpm exec vite build
 

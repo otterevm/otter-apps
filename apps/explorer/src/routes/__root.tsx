@@ -29,6 +29,8 @@ import {
 import { getWagmiConfig, getWagmiStateSSR } from '#wagmi.config.ts'
 import css from './styles.css?url'
 
+const chainName = import.meta.env.VITE_CHAIN_NAME || 'OtterEVM'
+
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient
 }>()({
@@ -42,11 +44,11 @@ export const Route = createRootRouteWithContext<{
 				content: 'width=device-width, initial-scale=1',
 			},
 			{
-				title: 'Explorer ⋅ OtterEVM',
+				title: `Explorer ⋅ ${chainName}`,
 			},
 			{
 				name: 'og:title',
-				content: 'Explorer ⋅ OtterEVM',
+				content: `Explorer ⋅ ${chainName}`,
 			},
 			{
 				name: 'viewport',
@@ -55,12 +57,12 @@ export const Route = createRootRouteWithContext<{
 			{
 				name: 'description',
 				content:
-					'Explore and analyze blocks, transactions, contracts and more on OtterEVM.',
+					`Explore and analyze blocks, transactions, contracts and more on ${chainName}.`,
 			},
 			{
 				name: 'og:description',
 				content:
-					'Explore and analyze blocks, transactions, contracts and more on OtterEVM.',
+					`Explore and analyze blocks, transactions, contracts and more on ${chainName}.`,
 			},
 			{
 				name: 'og:image',
