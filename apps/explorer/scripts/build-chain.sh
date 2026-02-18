@@ -124,17 +124,17 @@ VITE_RPC_URL="$VITE_RPC_URL"
 VITE_EXP_URL="$VITE_EXP_URL"
 VITE_NATIVE="$VITE_NATIVE"
 
-BUILD_DIR="/tmp/explorer-build-$(date +%s)"
-mkdir -p "$BUILD_DIR"
-cd "$BUILD_DIR"
+BUILD_DIR="/tmp/explorer-build-\$(date +%s)"
+mkdir -p "\$BUILD_DIR"
+cd "\$BUILD_DIR"
 
-echo "[$ARCH] Building in $BUILD_DIR..."
+echo "[\$ARCH] Building in \$BUILD_DIR..."
 
-echo "[$ARCH] Cloning $REPO_URL ($BUILD_BRANCH)..."
+echo "[\$ARCH] Cloning $REPO_URL ($BUILD_BRANCH)..."
 git clone --depth 1 --branch "$BUILD_BRANCH" "$REPO_URL" otter-apps
 cd otter-apps
 
-echo "[$ARCH] Building Docker image with chain config..."
+echo "[\$ARCH] Building Docker image with chain config..."
 docker buildx build --provenance=false \
     --build-arg VITE_CHAIN_NAME="$VITE_CHAIN_NAME" \
     --build-arg VITE_CHAIN_ID="$VITE_CHAIN_ID" \
@@ -143,16 +143,16 @@ docker buildx build --provenance=false \
     --build-arg VITE_NATIVE="$VITE_NATIVE" \
     --build-arg VITE_TEMPO_ENV=custom \
     -f apps/explorer/Dockerfile \
-    -t "$IMAGE_NAME:$ARCH_TAG" \
+    -t "\$IMAGE_NAME:\$ARCH_TAG" \
     .
 
-echo "[$ARCH] Pushing $IMAGE_NAME:$ARCH_TAG..."
-docker push "$IMAGE_NAME:$ARCH_TAG"
+echo "[\$ARCH] Pushing \$IMAGE_NAME:\$ARCH_TAG..."
+docker push "\$IMAGE_NAME:\$ARCH_TAG"
 
 cd /
-rm -rf "$BUILD_DIR"
+rm -rf "\$BUILD_DIR"
 
-echo "[$ARCH] Build complete!"
+echo "[\$ARCH] Build complete!"
 BUILD_SCRIPT
 
     ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$server" \
