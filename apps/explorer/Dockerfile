@@ -14,10 +14,12 @@ RUN npm install -g pnpm@10
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/explorer/package.json ./apps/explorer/
+COPY apps/explorer/wrangler.jsonc ./apps/explorer/
+COPY apps/explorer/.env.example ./apps/explorer/
 COPY packages/ ./packages/
 
-# Install dependencies (allow lockfile update for node package)
-RUN pnpm install --frozen-lockfile
+# Install dependencies (ignore postinstall scripts in build)
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source code
 COPY apps/explorer/ ./apps/explorer/
