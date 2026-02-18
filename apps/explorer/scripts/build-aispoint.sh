@@ -9,8 +9,10 @@ AMD64_SERVER="${1:-${AMD64_HOST:-}}"
 ARM64_SERVER="${2:-${ARM64_HOST:-}}"
 IMAGE_NAME="${IMAGE_NAME:-ghcr.io/otterevm/explorer}"
 TAG="aispoint"
+AMD64_TAG="${TAG}-amd64"
+ARM64_TAG="${TAG}-arm64"
 REPO_URL="${REPO_URL:-https://github.com/otterevm/otter-apps.git}"
-BUILD_BRANCH="${BUILD_BRANCH:-otterevm}"
+BUILD_BRANCH="${BUILD_BRANCH:-aispoint-build}"
 
 # SSH Configuration
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519-dokcer}"
@@ -45,7 +47,9 @@ echo -e "${GREEN}║   AISPoint Explorer Multi-Arch Build                   ║$
 echo -e "${GREEN}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 log_info "Chain: $VITE_CHAIN_NAME (ID: $VITE_CHAIN_ID)"
-log_info "Image: $IMAGE_NAME:$TAG"
+log_info "Image Base: $IMAGE_NAME"
+log_info "Tags: $TAG, $AMD64_TAG, $ARM64_TAG"
+log_info "Branch: $BUILD_BRANCH"
 echo ""
 
 # Remote build function
