@@ -21,8 +21,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      # Memory limit for Node.js (in MB)
-      - NODE_OPTIONS=--max-old-space-size=1536
+      # Memory limit for Node.js (in MB) - prevents OOM crashes
+      - NODE_OPTIONS=--max-old-space-size=1024
     restart: unless-stopped
     # Memory limits to prevent system OOM
     deploy:
