@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import * as React from 'react'
 import { ExploreInput } from '#comps/ExploreInput'
+import { HeaderWallet } from '#comps/HeaderWallet'
 import { useAnimatedBlockNumber, useLiveBlockNumber } from '#lib/block-number'
 import { cx } from '#lib/css'
 import { isTestnet } from '#lib/env'
@@ -28,6 +29,7 @@ export function Header(props: Header.Props) {
 				<div className="relative z-1 print:hidden flex items-center gap-[8px]">
 					<ThemeToggle />
 					<Header.BlockNumber initial={initialBlockNumber} />
+					<HeaderWallet />
 				</div>
 			</div>
 			<Header.Search compact />
@@ -186,6 +188,27 @@ export namespace Header {
 		const liveBlockNumber = useLiveBlockNumber(initial)
 		const blockNumber =
 			resolvedPathname === '/blocks' ? liveBlockNumber : optimisticBlockNumber
+		const isMounted = useIsMounted()
+
+		// Prevent hydration mismatch by not rendering interactive element until mounted
+		if (!isMounted) {
+			return (
+				<div
+					className={cx(
+						className,
+						'flex items-center gap-[6px] text-[15px] font-medium text-secondary',
+					)}
+					title="View latest block"
+				>
+					<SquareSquare className="size-[18px] text-accent" />
+					<div className="text-nowrap">
+						<span className="text-primary font-medium tabular-nums font-mono min-w-[6ch] inline-block">
+							{blockNumber != null ? String(blockNumber) : '…'}
+						</span>
+					</div>
+				</div>
+			)
+		}
 
 		return (
 			<Link

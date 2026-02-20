@@ -16,6 +16,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiCodeRouteImport } from './routes/api/code'
 import { Route as LayoutValidatorsRouteImport } from './routes/_layout/validators'
 import { Route as LayoutTokensRouteImport } from './routes/_layout/tokens'
+import { Route as LayoutIssueTokenRouteImport } from './routes/_layout/issue-token'
 import { Route as LayoutBlocksRouteImport } from './routes/_layout/blocks'
 import { Route as LayoutDemoIndexRouteImport } from './routes/_layout/demo/index'
 import { Route as ApiTokensCountRouteImport } from './routes/api/tokens/count'
@@ -71,6 +72,11 @@ const LayoutValidatorsRoute = LayoutValidatorsRouteImport.update({
 const LayoutTokensRoute = LayoutTokensRouteImport.update({
   id: '/tokens',
   path: '/tokens',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutIssueTokenRoute = LayoutIssueTokenRouteImport.update({
+  id: '/issue-token',
+  path: '/issue-token',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutBlocksRoute = LayoutBlocksRouteImport.update({
@@ -193,6 +199,7 @@ const LayoutBlockCountdownTargetBlockRoute =
 export interface FileRoutesByFullPath {
   '/': typeof LayoutIndexRoute
   '/blocks': typeof LayoutBlocksRoute
+  '/issue-token': typeof LayoutIssueTokenRoute
   '/tokens': typeof LayoutTokensRoute
   '/validators': typeof LayoutValidatorsRoute
   '/api/code': typeof ApiCodeRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/blocks': typeof LayoutBlocksRoute
+  '/issue-token': typeof LayoutIssueTokenRoute
   '/tokens': typeof LayoutTokensRoute
   '/validators': typeof LayoutValidatorsRoute
   '/api/code': typeof ApiCodeRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_layout': typeof LayoutRouteWithChildren
   '/_layout/blocks': typeof LayoutBlocksRoute
+  '/_layout/issue-token': typeof LayoutIssueTokenRoute
   '/_layout/tokens': typeof LayoutTokensRoute
   '/_layout/validators': typeof LayoutValidatorsRoute
   '/api/code': typeof ApiCodeRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/blocks'
+    | '/issue-token'
     | '/tokens'
     | '/validators'
     | '/api/code'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/blocks'
+    | '/issue-token'
     | '/tokens'
     | '/validators'
     | '/api/code'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_layout'
     | '/_layout/blocks'
+    | '/_layout/issue-token'
     | '/_layout/tokens'
     | '/_layout/validators'
     | '/api/code'
@@ -442,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/tokens'
       fullPath: '/tokens'
       preLoaderRoute: typeof LayoutTokensRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/issue-token': {
+      id: '/_layout/issue-token'
+      path: '/issue-token'
+      fullPath: '/issue-token'
+      preLoaderRoute: typeof LayoutIssueTokenRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/blocks': {
@@ -603,6 +622,7 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutBlocksRoute: typeof LayoutBlocksRoute
+  LayoutIssueTokenRoute: typeof LayoutIssueTokenRoute
   LayoutTokensRoute: typeof LayoutTokensRoute
   LayoutValidatorsRoute: typeof LayoutValidatorsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -621,6 +641,7 @@ interface LayoutRouteChildren {
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutBlocksRoute: LayoutBlocksRoute,
+  LayoutIssueTokenRoute: LayoutIssueTokenRoute,
   LayoutTokensRoute: LayoutTokensRoute,
   LayoutValidatorsRoute: LayoutValidatorsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

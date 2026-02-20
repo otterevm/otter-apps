@@ -75,7 +75,9 @@ export function ChainInfo(props: ChainInfo.Props): React.JSX.Element {
 				</div>
 				<div className="flex items-center gap-1.5">
 					<span className="text-base-content-tertiary">Currency:</span>
-					<span className="font-medium">{chainConfig.nativeCurrency.symbol}</span>
+					<span className="font-medium">
+						{chainConfig.nativeCurrency.symbol}
+					</span>
 				</div>
 			</div>
 		</div>
@@ -92,7 +94,10 @@ export declare namespace ChainInfo {
 declare global {
 	interface Window {
 		ethereum?: {
-			request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+			request: (args: {
+				method: string
+				params?: unknown[]
+			}) => Promise<unknown>
 		}
 	}
 }

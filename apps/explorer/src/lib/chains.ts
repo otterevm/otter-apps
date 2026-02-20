@@ -73,9 +73,11 @@ export function getChainDisplayName(): string {
 export function getWalletChainConfig() {
 	const chainId = Number(import.meta.env.VITE_CHAIN_ID || '7447')
 	const chainName = import.meta.env.VITE_CHAIN_NAME || 'OtterEVM'
-	const rpcUrl = import.meta.env.VITE_RPC_URL || 'https://rpc.pakxe.otterevm.com/'
+	const rpcUrl =
+		import.meta.env.VITE_RPC_URL || 'https://rpc.pakxe.otterevm.com/'
 	const nativeCurrency = import.meta.env.VITE_NATIVE || 'OTTER'
-	const explorerUrl = import.meta.env.VITE_EXP_URL || 'https://explorer.otterevm.com'
+	const explorerUrl =
+		import.meta.env.VITE_EXP_URL || 'https://explorer.otterevm.com'
 
 	return {
 		chainId: `0x${chainId.toString(16)}`,

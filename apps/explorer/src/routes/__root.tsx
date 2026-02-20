@@ -64,89 +64,89 @@ export const Route = createRootRouteWithContext<{
 					name: 'og:description',
 					content: description,
 				},
-			{
-				name: 'og:image',
-				content: `${OG_BASE_URL}/explorer`,
-			},
-			{
-				name: 'og:image:type',
-				content: 'image/webp',
-			},
-			{
-				name: 'og:image:width',
-				content: '1200',
-			},
-			{
-				name: 'og:image:height',
-				content: '630',
-			},
-			{
-				name: 'twitter:card',
-				content: 'summary_large_image',
-			},
-			{
-				name: 'twitter:image',
-				content: `${OG_BASE_URL}/explorer`,
-			},
-		],
-		links: [
-			{
-				rel: 'stylesheet',
-				href: css,
-			},
-			{
-				rel: 'icon',
-				type: 'image/svg+xml',
-				href: '/favicon-light.svg',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				rel: 'icon',
-				type: 'image/svg+xml',
-				href: '/favicon-dark.svg',
-				media: '(prefers-color-scheme: dark)',
-			},
-			{
-				rel: 'icon',
-				type: 'image/png',
-				sizes: '32x32',
-				href: '/favicon-32x32-light.png',
-				media: '(prefers-color-scheme: dark)',
-			},
-			{
-				rel: 'icon',
-				type: 'image/png',
-				sizes: '32x32',
-				href: '/favicon-32x32-dark.png',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				rel: 'icon',
-				type: 'image/png',
-				sizes: '16x16',
-				href: '/favicon-16x16-light.png',
-				media: '(prefers-color-scheme: dark)',
-			},
-			{
-				rel: 'icon',
-				type: 'image/png',
-				sizes: '16x16',
-				href: '/favicon-16x16-dark.png',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				rel: 'apple-touch-icon',
-				sizes: '180x180',
-				href: '/favicon-light.png',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				rel: 'apple-touch-icon',
-				sizes: '180x180',
-				href: '/favicon-dark.png',
-				media: '(prefers-color-scheme: dark)',
-			},
-		],
+				{
+					name: 'og:image',
+					content: `${OG_BASE_URL}/explorer`,
+				},
+				{
+					name: 'og:image:type',
+					content: 'image/webp',
+				},
+				{
+					name: 'og:image:width',
+					content: '1200',
+				},
+				{
+					name: 'og:image:height',
+					content: '630',
+				},
+				{
+					name: 'twitter:card',
+					content: 'summary_large_image',
+				},
+				{
+					name: 'twitter:image',
+					content: `${OG_BASE_URL}/explorer`,
+				},
+			],
+			links: [
+				{
+					rel: 'stylesheet',
+					href: css,
+				},
+				{
+					rel: 'icon',
+					type: 'image/svg+xml',
+					href: '/favicon-light.svg',
+					media: '(prefers-color-scheme: light)',
+				},
+				{
+					rel: 'icon',
+					type: 'image/svg+xml',
+					href: '/favicon-dark.svg',
+					media: '(prefers-color-scheme: dark)',
+				},
+				{
+					rel: 'icon',
+					type: 'image/png',
+					sizes: '32x32',
+					href: '/favicon-32x32-light.png',
+					media: '(prefers-color-scheme: dark)',
+				},
+				{
+					rel: 'icon',
+					type: 'image/png',
+					sizes: '32x32',
+					href: '/favicon-32x32-dark.png',
+					media: '(prefers-color-scheme: light)',
+				},
+				{
+					rel: 'icon',
+					type: 'image/png',
+					sizes: '16x16',
+					href: '/favicon-16x16-light.png',
+					media: '(prefers-color-scheme: dark)',
+				},
+				{
+					rel: 'icon',
+					type: 'image/png',
+					sizes: '16x16',
+					href: '/favicon-16x16-dark.png',
+					media: '(prefers-color-scheme: light)',
+				},
+				{
+					rel: 'apple-touch-icon',
+					sizes: '180x180',
+					href: '/favicon-light.png',
+					media: '(prefers-color-scheme: light)',
+				},
+				{
+					rel: 'apple-touch-icon',
+					sizes: '180x180',
+					href: '/favicon-dark.png',
+					media: '(prefers-color-scheme: dark)',
+				},
+			],
 		}
 	},
 	scripts: async () => {
