@@ -109,7 +109,7 @@ export default defineConfig((config) => {
 					minify: {
 						compress:
 							config.mode === 'production'
-								? { dropConsole: true, dropDebugger: true }
+								? { dropConsole: false, dropDebugger: true }
 								: undefined,
 					},
 					manualChunks: (id, { getModuleInfo }) => {
