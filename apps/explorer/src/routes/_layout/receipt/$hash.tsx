@@ -1,5 +1,23 @@
-import { env } from 'cloudflare:workers'
-import puppeteer from '@cloudflare/puppeteer'
+// NOTE: สำหรับ Docker/Node.js ใช้ puppeteer ธรรมดา หรือ disable PDF ถ้าไม่มี browser
+const getPuppeteer = async () => {
+	if (typeof process !== 'undefined' && process.versions?.node) {
+		// Node.js environment - use regular puppeteer if available
+		try {
+			const puppeteer = await import('puppeteer')
+			return puppeteer.default || puppeteer
+		} catch {
+			return null
+		}
+	}
+	// Cloudflare Workers environment
+	try {
+		const { env } = await import('cloudflare:workers')
+		const puppeteer = await import('@cloudflare/puppeteer')
+		return { env, puppeteer: puppeteer.default || puppeteer }
+	} catch {
+		return null
+	}
+}
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import {
 	createFileRoute,

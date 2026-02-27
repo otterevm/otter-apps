@@ -1,34 +1,31 @@
+version: '3.8'
+
 services:
   explorer:
-    image: ghcr.io/otterevm/exp:latest
     build:
       context: ../..
       dockerfile: apps/explorer/Dockerfile
-    container_name: otterevm-explorer
+      args:
+        VITE_TEMPO_ENV: ${VITE_TEMPO_ENV:-moderato}
+    image: otter-explorer:latest
+    container_name: otter-explorer
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      # Chain configuration - customize these for your blockchain
-      # Examples:
-      #   VITE_CHAIN_NAME=Pakxe
-      #   VITE_CHAIN_ID=7447
-      #   VITE_RPC_URL=https://rpc.pakxe.otterevm.com/
-      #   VITE_LOGO_URL=/logo.svg
-      - VITE_TEMPO_ENV=custom
-      - VITE_CHAIN_NAME=${VITE_CHAIN_NAME:-Pakxe}
-      - VITE_CHAIN_ID=${VITE_CHAIN_ID:-7447}
-      - VITE_RPC_URL=${VITE_RPC_URL:-https://rpc.pakxe.otterevm.com/}
-      - VITE_LOGO_URL=${VITE_LOGO_URL:-/logo.svg}
+      - PORT=3000
+      - NITRO_PORT=3000
+      - VITE_TEMPO_ENV=${VITE_TEMPO_ENV:-moderato}
+      - VITE_BASE_URL=${VITE_BASE_URL:-}
+      - INDEXER_API_KEY=${INDEXER_API_KEY:-}
+      - TEMPO_RPC_KEY=${TEMPO_RPC_KEY:-}
+      - FORWARD_RPC_AUTH=${FORWARD_RPC_AUTH:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+      - SENTRY_TRACES_SAMPLE_RATE=${SENTRY_TRACES_SAMPLE_RATE:-0.1}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "100m"
-        max-file: "3"
+      start_period: 10s

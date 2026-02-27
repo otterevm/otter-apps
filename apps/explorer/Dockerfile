@@ -1,77 +1,60 @@
-# Multi-stage build for OtterEVM Explorer
-# Build context: repo root (../../ from this file)
+# Build stage
+FROM node:22-slim AS builder
 
-# Stage 1: Build
-FROM node:20-slim AS builder
-
-# Build arguments for chain configuration
-ARG VITE_TEMPO_ENV=custom
-ARG VITE_CHAIN_NAME
-ARG VITE_CHAIN_ID
-ARG VITE_RPC_URL
-ARG VITE_EXP_URL
-ARG VITE_NATIVE
-ARG VITE_LOGO_URL
-
-# Set environment variables for build
-ENV VITE_TEMPO_ENV=$VITE_TEMPO_ENV
-ENV VITE_CHAIN_NAME=$VITE_CHAIN_NAME
-ENV VITE_CHAIN_ID=$VITE_CHAIN_ID
-ENV VITE_RPC_URL=$VITE_RPC_URL
-ENV VITE_EXP_URL=$VITE_EXP_URL
-ENV VITE_NATIVE=$VITE_NATIVE
-ENV VITE_LOGO_URL=$VITE_LOGO_URL
-
-# Install required tools
-RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@10.9.0
 
-WORKDIR /app
-
-# Copy root package files first (for workspace)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy all package.json files for workspace dependencies
-COPY packages/rpc-utils/package.json ./packages/rpc-utils/
+# Copy package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/explorer/package.json ./apps/explorer/
+COPY apps/explorer/.env.example ./apps/explorer/
+COPY apps/explorer/wrangler.jsonc ./apps/explorer/
+COPY packages/ ./packages/
 
-# Install dependencies (ignore scripts to avoid postinstall issues)
-RUN pnpm install --frozen-lockfile --ignore-scripts
-
-# Remove the node wrapper that causes issues
-RUN rm -f /app/node_modules/.bin/node
-RUN rm -rf /app/node_modules/node
+# Install dependencies (ignore postinstall scripts ที่ใช้ wrangler)
+RUN cd apps/explorer && pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source code
-COPY packages/rpc-utils ./packages/rpc-utils/
-COPY apps/explorer ./apps/explorer/
-COPY biome.json ./
+COPY apps/explorer/ ./apps/explorer/
 
-# Build the explorer app
+# Build the app (ใช้ docker config)
 WORKDIR /app/apps/explorer
-RUN pnpm exec vite build
+ARG VITE_TEMPO_ENV=moderato
+ENV VITE_TEMPO_ENV=${VITE_TEMPO_ENV}
+RUN pnpm build:docker
 
-# Stage 2: Production
-FROM node:20-slim AS runner
-
-# Install CA certificates for TLS connections
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Production stage
+FROM node:22-slim AS runner
 
 WORKDIR /app
 
-# Install wrangler
-RUN npm install -g wrangler && npm cache clean --force
+# Install pnpm
+RUN npm install -g pnpm@10.9.0
 
-# Copy built assets
-COPY --from=builder /app/apps/explorer/dist ./dist
+# Copy package files for production dependencies
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/explorer/package.json ./apps/explorer/
+COPY apps/explorer/.env.example ./apps/explorer/
+COPY apps/explorer/wrangler.jsonc ./apps/explorer/
+COPY packages/ ./packages/
 
-# Work from the server directory
-WORKDIR /app/dist/server
+# Install production dependencies only (ignore scripts)
+RUN cd apps/explorer && pnpm install --frozen-lockfile --prod --ignore-scripts
+
+# Copy built app from builder (.output จาก Nitro)
+COPY --from=builder /app/apps/explorer/.output ./apps/explorer/.output
+COPY --from=builder /app/apps/explorer/package.json ./apps/explorer/
+
+WORKDIR /app/apps/explorer
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NITRO_PORT=3000
 
 # Expose port
 EXPOSE 3000
 
-# Run
-CMD ["wrangler", "dev", "--port", "3000", "--ip", "0.0.0.0"]
+# Start the server using Nitro output
+CMD ["node", ".output/server/index.mjs"]

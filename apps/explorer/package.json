@@ -29,11 +29,14 @@
 		"gen:tokens-index": "node --experimental-strip-types --env-file=.env scripts/generate-tokens-index.ts",
 		"gen:types": "test -f .env || cp .env.example .env; CLOUDFLARE_ENV='presto' wrangler types",
 		"preview": "vite preview --mode='preview'",
-		"test": "vitest"
+		"test": "vitest",
+		"build:docker": "NODE_OPTIONS='--max-old-space-size=8192' vite build --config vite.docker.config.ts",
+		"start:docker": "node .output/server/index.mjs"
 	},
 	"dependencies": {
 		"@tempo/rpc-utils": "workspace:*",
 		"@sentry/cloudflare": "catalog:",
+		"@sentry/node": "catalog:",
 		"@sentry/react": "catalog:",
 		"@shazow/whatsabi": "catalog:",
 		"@shikijs/langs": "catalog:",
@@ -91,6 +94,7 @@
 		"vite": "catalog:",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vitest": "catalog:",
-		"wrangler": "catalog:"
+		"wrangler": "catalog:",
+		"nitro": "npm:nitro-nightly@latest"
 	}
 }
